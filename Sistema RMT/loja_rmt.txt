@@ -136,12 +136,11 @@ L_INIT:
 	mes .npc$;
 	mes "Este é o sistema RMT do servidor seuro.";
 	mes "Escolha oque deseja fazer:";
-	switch(select("Ver Loja","Acessar Painel","Informações","Nenhum"))
+	switch(select("Central de Vendas","Painel RMT","Informações","Nenhum"))
 	{
 		case 1:
 			next;
-			close;
-			end;
+			goto L_LOJA;
 		
 		case 2:
 			next;
@@ -542,9 +541,185 @@ L_ADM:
 	}
 end;
 
+//Central de Vendas
+L_LOJA:
+	mes .npc$;
+	mes "Bem-Vindo a Central de Vendas RMT";
+	mes "Venda seu item para outros jogadores em REAL/BRT";
+	switch(select("Loja","Cadastrar Item","Remover Item","Voltar"))
+	{
+		case 1:
+			next;
+			callshop "RMTSHOP1",1;
+			npcshopattach "RMTSHOP1";
+			end;
+			close;
+		
+		case 2:
+			next;
+			mes .npc$;
+			mes "Caso se arrependa você poderá remover seu item.";
+			mes "Não se esqueça de remover as cartas do item, não venderemos ele com elas equipadas.";
+			mes "Você só pode cadastrar 1 item por vez.";
+			next;
+			mes .npc$;
+			mes "Digite o nome do item:";
+			input @item_id;
+			next;
+			if(!countitem(@item_id) > 0)
+			{
+				mes .npc$;
+				mes "O ID digitado está errado ou você não tem o item especificado!";
+				next;
+				goto L_LOJA;
+			}
+			mes .npc$;
+			mes "Digite o valor do item:";
+			mes "10,00 R$ = 1000";
+			mes "10,50 R$ = 1050";
+			input @item_valor;
+			next;
+			if(@item_valor < 10)
+			{
+				mes .npc$;
+				mes "Digite um valor maior do que 0,10 R$.";
+				next;
+				goto L_LOJA;
+			}
+			else if(@item_valor > 100000)
+			{
+				mes .npc$;
+				mes "Digite um valor menor do que 1000,00 R$.";
+				next;
+				goto L_LOJA;
+			}
+			mes .npc$;
+			mes "Deseja adicionar o item "+getitemname(@item_id)+"?";
+			if(select("Sim","Não")==2)goto L_LOJA;
+				next;
+				delitem @item_id,1;
+				query_sql("INSERT INTO `sistema_pix_npc` (`account_id`, `char_id`, `char_nome`, `item_id`, `item_quant`, `valor`) VALUES ('"+getcharid(3)+"', '"+getcharid(0)+"', '"+strcharinfo(0)+"', '"+@item_id+"', '1', '"+@item_valor+"')");
+				mes .npc$;
+				mes "Item adicionado com sucesso! Assim que for vendido iremos transferir o dinheiro para você!";
+				close;
+				end;
+	
+		case 3:
+			next;
+			mes .npc$;
+			mes "Digite por favor o id do item que você quer remover:";
+			input @item_id;
+			next;
+			query_sql("SELECT `item_id` FROM `sistema_pix_npc` WHERE `account_id`='"+getcharid(3)+"'",@item_id_sql);
+			if(@item_id != @item_id_sql)
+			{
+				mes .npc$;
+				mes "Não conseguimos achar registros do item que você quer remover, por favor tente novamente!";
+				next;
+				goto L_LOJA;
+			}
+			set @i,0;
+			while (1)
+			{
+				query_sql("SELECT `id`,`account_id`,`item_id`,`valor` FROM `sistema_pix_npc` order by `id` desc limit "+@i+","+@i+1+"",@id,@account_id,@item_id,@valor);
+				if(@account_id != getcharid(3))
+				{
+					@i++;
+					continue;
+				}
+				else
+				{
+					mes .npc$;
+					mes "Registro: [nº "+@id+"]";
+					mes "Valor: ["+@valor+"]";
+					if(select("Remover Item","Não Remover")==2)continue;
+						next;
+						query_sql("DELETE FROM `sistema_pix_npc` WHERE `sistema_pix_npc`.`id` = '"+@id+"'");
+						getitem @item_id,1;
+						mes .npc$;
+						mes "Aqui está seu item!";
+						break;
+				}
+			}
+			close;
+			end;
+			
+		
+		case 4:
+			next;
+			goto L_INIT;
+	}
+end;
+
+//Função ao selecionar item da loja
+OnBuyItem:
+mes .npc$;
+if (totalpontos==0){mes "Você não possui Pontos de Emblemas"; close;}
+end;
+
+//Carregar itens da tabela SQL para o NPC
+OnLoadSql:
+	set .@k,0;
+	set .@p,0;
+	query_sql("SELECT `id` FROM `sistema_pix_npc` order by `id` desc limit 1",.@idsql);
+	for(.@j = 0; .@j <= .@idsql; .@j++)
+	{
+		query_sql("SELECT `id`,`account_id`,`item_id`,`valor` FROM `sistema_pix_npc` WHERE `id` = "+.@j+" AND `id` > 0",.@id,.@account_id,.@item_id,.@valor);
+		if(.@id > 0)
+		{
+			if(.@k == 0)
+			{
+				npcshopdelitem "RMTSHOP1",512;
+			}
+				
+			setarray .ShopIDI1[.@k],.@item_id;
+			setarray .ShopQNT1[.@k],1;
+			setarray .ShopVLR1[.@k],.@valor;
+			setarray .ShopISQ1[.@k],.@id;
+			setarray .ShopACC1[.@k],.@account_id;
+			
+			npcshopadditem "RMTSHOP1", .ShopIDI1[.@k], .ShopVLR1[.@k];
+			.@k++;
+		}
+	}
+end;
+
+//Recarregar itens da tabela SQL para o NPC
+OnRefreshSql:
+	set .@k,0;
+	
+	for(.@p = 0; .@p <= getarraysize(.ShopIDI1); .@p++)
+	{
+		npcshopdelitem "RMTSHOP1",.ShopIDI1[.@p];
+	}
+	
+	query_sql("SELECT `id` FROM `sistema_pix_npc` order by `id` desc limit 1",.@idsql);
+	for(.@j = 0; .@j <= .@idsql; .@j++)
+	{
+		query_sql("SELECT `id`,`account_id`,`item_id`,`valor` FROM `sistema_pix_npc` WHERE `id` = "+.@j+" AND `id` > 0",.@id,.@account_id,.@item_id,.@valor);
+		if(.@id > 0)
+		{		
+			setarray .ShopIDI1[.@k],.@item_id;
+			setarray .ShopQNT1[.@k],1;
+			setarray .ShopVLR1[.@k],.@valor;
+			setarray .ShopISQ1[.@k],.@id;
+			setarray .ShopACC1[.@k],.@account_id;
+			
+			npcshopadditem "RMTSHOP1", .ShopIDI1[.@k], .ShopVLR1[.@k];
+			.@k++;
+		}
+	}
+end;
+
+OnTimer5000:
+	donpcevent .nomeevent$+"::OnRefreshSql";
+	setnpctimer 0;
+end;
+
 OnInit:
 	//nome do npc
 	set .npc$,"[Sistema RMT]";
+	set .nomeevent$,"Sistema RMT";
 	
 	//tarifas de saque
 	set .tcash,0; //0%
@@ -573,5 +748,12 @@ OnInit:
 	//valor mínimo transferência (somente RMT)
 	set .vminimosolicreal,100; //1,00R$
 	set .vmaximosolicreal,100000; //1000,00R$
+	
+	donpcevent .nomeevent$+"::OnLoadSql";
+
+	initnpctimer;
 end;
 }
+
+//====RMT_LOJA
+-	shop	RMTSHOP1	-1,512:-1
