@@ -1,0 +1,378 @@
+//=============================PEDRODKS - LUMINUS=============================
+//=             __      __                    __________   ___________
+//=            |  |    |  |     /|    |\     |   ____   | |  ______  /  
+//=            |  |    |  |    / |____| \    |  |    |  | | |     / /
+//=            |  |____|  |   /          \   |  |    |  | | |    / /
+//=            | UNIVERSE |  /  /\____/\  \  |  |____|  | | |__ / /
+//=            |__________| /_ /        \__\ |__________| |______/
+//===================================Autoria==================================
+//= PEDRODKS CONHECIDO COMO LUMINUS
+//= Criador do UniverseMOD
+//= WhatsAPP: 75983719402
+//===================================Licença==================================
+//= Todos os direitos reservados para Pedrodks, criador do UniverseMOD
+//= Qualquer venda ou utilização sem os devidos direitos, lhe deixará sujeito
+//= A responder legalmente por uso indevido de material não autorizado.
+//===================================Versão===================================
+//= 1.0 criado npc inicial
+//============================================================================
+prontera,156,150,3	script	Sistema PIX	4_M_MANAGER,{
+	
+L_PIX:
+	if(!#PIX)
+	{
+		mes .npc$;
+		mes "Para acessar o sistema é necessário criar a sua chave PIX.";
+		if(select("Criar","Não Criar")==2)close;
+			next;
+			mes .npc$;
+			mes "ATENÇÃO: Insira os dados requisitados atenciosamente. Sua senha é de sua única exclusividade!";
+			mes "A equipe seuro não se responsabiliza caso você passe a senha para alguém.";
+			next;
+			mes .npc$;
+			mes "Insira seu primeiro nome:";
+			input @p_nome$;
+			next;
+			mes .npc$;
+			mes "Insira seu sobrenome:";
+			input @s_nome$;
+			next;
+			mes .npc$;
+			mes "Insira o dia em que nasceu:";
+			mes "Valores de 1 a 31.";
+			input @dia;
+			next;
+			if(@dia < 1 && @dia > 31)
+			{
+				mes .npc$;
+				mes "Valor que foi digitado está errado, por favor digite valores entre 1 e 31.";
+				next;
+				goto L_PIX;
+			}
+			mes .npc$;
+			mes "Insira o mês em que nasceu:";
+			mes "Valores de 1 a 12.";
+			input @mes;
+			next;
+			if(@mes < 1 && @mes > 12)
+			{
+				mes .npc$;
+				mes "Valor que foi digitado está errado, por favor digite valores entre 1 e 12.";
+				next;
+				goto L_PIX;
+			}
+			mes .npc$;
+			mes "Insira o ano em que nasceu:";
+			mes "Valores de 1930 a 2022.";
+			input @ano;
+			next;
+			if(@ano < 1930 && @ano > 2022)
+			{
+				mes .npc$;
+				mes "Valor que foi digitado está errado, por favor digite valores entre 1930 e 2022.";
+				next;
+				goto L_PIX;
+			}
+			mes .npc$;
+			mes "Insira um número de celular válido sem DD seguindo o paramêtro 9NUMERO, exemplo: 954852213.";
+			input @telefone;
+			next;
+			if(@telefone < 100000000 && @telefone > 999999999)
+			{
+				mes .npc$;
+				mes "Valor que foi digitado está errado, por favor digite um número de celular válido sem DD seguindo o paramêtro 9NUMERO, exemplo: 954852213.";
+				next;
+				goto L_PIX;
+			}
+			mes .npc$;
+			mes "Agora insira sua Chave PIX do seu uso do dia a dia.";
+			mes "ATENÇÃO: Caso digite uma chave errada apenas a administração poderá altera-la.";
+			input @chave_pix$;
+			next;
+			mes .npc$;
+			mes "Agora digite sua senha númerica de 6 dígitos, será utilizada para realizar transações:";
+			mes "Valor inicial para a senha é de 100000 e o valor final 999999.";
+			input @senha_pix;
+			next;
+			if(@senha_pix < 100000 && @senha_pix > 999999)
+			{
+				mes .npc$;
+				mes "Valor que foi digitado está errado, por favor digite valores entre 100000 e 999999.";
+				next;
+				goto L_PIX;
+			}
+			mes .npc$;
+			mes "Vamos conferir seus dados:";
+			mes "Nome: "+@p_nome$+".";
+			mes "Sobrenome: "+@s_nome$+".";
+			mes "Nascimento: "+@dia+"/"+@mes+"/"+@ano+".";
+			mes "Telefone: "+@telefone+".";
+			mes "Chave: "+@chave_pix$+".";
+			mes "Senha: "+@senha_pix+".";
+			if(select("Estão Corretos","Quero Mudar")==2)goto L_PIX;
+				next;
+				mes .npc$;
+				mes "Estou dando entrada no sistema, aguarde...";
+				query_sql("INSERT INTO `sistema_pix` (`account_id`, `p_nome`, `s_nome`, `dia`, `mes`, `ano`, `telefone`, `chave_pix`, `senha`, `saldo`) VALUES ('"+getcharid(3)+"', '"+@p_nome$+"', '"+@s_nome$+"', '"+@dia+"', '"+@mes+"', '"+@ano+"', '"+@telefone+"', '"+@chave_pix$+"', '"+@senha_pix+"', '0')");
+				set #PIX,1;
+				next;
+				mes .npc$;
+				mes "Tudo certo! Fale comigo novamente para acessar as funções do sistema.";
+				close;
+				end;
+	}
+	else
+	{
+		goto L_INIT;
+	}
+end;
+
+L_INIT:
+	mes .npc$;
+	mes "Este é o sistema pix do servidor seuro.";
+	mes "Escolha oque deseja fazer:";
+	switch(select("Ver Loja","Acessar Painel","Informações","Nenhum"))
+	{
+		case 1:
+			next;
+			close;
+			end;
+		
+		case 2:
+			next;
+			query_sql("SELECT `telefone`,`chave_pix`,`saldo` FROM `sistema_pix` WHERE `account_id`='"+getcharid(3)+"'",@telefone,@chave_pix$,@saldo);
+			query_sql("SELECT `valor_saque` FROM `sistema_pix_saque` WHERE `account_id`='"+getcharid(3)+"'",@valor_solic);
+			mes .npc$;
+			mes "Chave PIX: ["+@chave_pix$+"]";
+			mes "Telefone: ["+@telefone+"]";
+			mes "Saldo PIX: ["+@saldo+"]";
+			mes "Saldo CASH: ["+#CASHPOINTS+"]";
+			mes "Saque em Validação: ["+@valor_solic+"]";
+			switch(select("Sacar","Depositar","Transferir","Informações"))
+			{
+				case 1:
+					next;
+					mes .npc$;
+					mes "Você deseja abrir uma solicitação de saque?";
+					mes "As solicitações de saque em moeda REAL/BRT atendidas sempre cairão ás quartas.";
+					if(select("Abrir Solicitação","Voltar")==2)goto L_INIT;
+						next;
+						mes .npc$;
+						mes "Escolha uma opção de saque:";
+						switch(select("Sacar em REAL","Sacar em CASH","Voltar"))
+						{
+							case 1:
+								next;
+								if(@valor_solic)
+								{
+									mes.npc$;
+									mes "Você só poderá abrir outra solicitação quando a sua atual for atendida.";
+									next;
+									goto L_INIT;
+								}
+								mes .npc$;
+								mes "Para sacar o seu dinheiro, será cobrada uma taxa de "+.treal+"% em cima do valor requisitado.";
+								mes "O valor mínimo de saque é de 10,00 R$";
+								mes "O valor máximo de saque é de 1000,00 R$";
+								next;
+								mes .npc$;
+								mes "Digite o Valor:";
+								input @sreal;
+								next;
+								@srealtarifa = @sreal + (@sreal*.treal/100);
+								@srealtotal = @srealtarifa - @sreal;
+								if(@sreal < .vminimoreal)
+								{
+									mes .npc$;
+									mes "Você digitou um valor abaixo do permitido.";
+									next;
+									goto L_INIT;
+								}
+								else if(@sreal > .vmaximoreal)
+								{
+									mes .npc$;
+									mes "Você digitou um valor acima do permitido.";
+									next;
+									goto L_INIT;
+								}
+								mes .npc$;
+								mes "Você deseja sacar "+@sreal+" R$, pagando uma tarifa de "+@srealtotal+" R$?";
+								if(select("Sim","Não")==2)goto L_INIT;
+									next;
+									if(@srealtarifa > @saldo)
+									{
+										mes .npc$;
+										mes "Você digitou um valor acima do seu saldo PIX atual.";
+										mes "Considere calcular o valor da tarifa ou do seu saldo permitido antes de abrir uma solicitação.";
+										next;
+										goto L_INIT;
+									}
+									set @saldoupdate,@saldo - @srealtarifa;
+									query_sql("UPDATE `sistema_pix` SET `saldo` = '"+@saldoupdate+"' WHERE `sistema_pix`.`account_id` = '"+getcharid(3)+"'");
+									query_sql("INSERT INTO `sistema_pix_saque` (`account_id`, `char_id`, `char_nome`, `dia`, `mes`, `ano`, `chave_pix`, `valor_saque`) VALUES ('"+getcharid(3)+"', '"+getcharid(0)+"', '"+strcharinfo(0)+"', '"+gettime(5)+"', '"+gettime(6)+"', '"+gettime(7)+"', '"+@chave_pix$+"', '"+@sreal+"')");
+									mes .npc$;
+									mes "Solicitação de saque feita com sucesso, aguarde a validação que poderá ser acompanhada no painel.";
+									close;
+									end;
+							
+							case 2:
+								next;
+								mes .npc$;
+								mes "Para sacar o seu dinheiro, será cobrada uma taxa de "+.tcash+"% em cima do valor requisitado.";
+								mes "Exemplo: Para sacar 100c digite 100 e poderá sacar 100c pagando a tarifa.";
+								mes "O valor mínimo de saque é de 10c";
+								mes "O valor máximo de saque é de 1000c";
+								next;
+								mes .npc$;
+								mes "Digite o Valor:";
+								input @scash;
+								next;
+								set @scash,@scash * 100;
+								@scashtarifa = @scash + (@scash*.tcash/100);
+								@scashtotal = (@scashtarifa - @scash)/100;
+								if(@scash < .vminimocash)
+								{
+									mes .npc$;
+									mes "Você digitou um valor abaixo do permitido.";
+									next;
+									goto L_INIT;
+								}
+								else if(@scash > .vmaximocash)
+								{
+									mes .npc$;
+									mes "Você digitou um valor acima do permitido.";
+									next;
+									goto L_INIT;
+								}
+								mes .npc$;
+								mes "Você deseja sacar "+@scash/100+"c, pagando uma tarifa de "+@scashtotal+"c?";
+								if(select("Sim","Não")==2)goto L_INIT;
+									next;
+									if(@scashtarifa > @saldo)
+									{
+										mes .npc$;
+										mes "Você digitou um valor acima do seu saldo PIX atual.";
+										mes "Considere calcular o valor da tarifa ou do seu saldo permitido antes de abrir uma solicitação.";
+										next;
+										goto L_INIT;
+									}
+									set @saldoupdate,@saldo - @scashtarifa;
+									set @cashvalor,@scashtarifa/100;
+									#CASHPOINTS += @cashvalor;
+									dispbottom("Recebeu "+@cashvalor+" pontos de CASH. Total "+#CASHPOINTS+" pontos.");
+									query_sql("UPDATE `sistema_pix` SET `saldo` = '"+@saldoupdate+"' WHERE `sistema_pix`.`account_id` = '"+getcharid(3)+"'");
+									query_sql("INSERT INTO `sistema_pix_log` (`account_id`, `char_id`, `char_nome`, `dia`, `mes`, `ano`, `valor_sacado`, `valor_depositado`, `moeda`) VALUES ('"+getcharid(3)+"', '"+getcharid(0)+"', '"+strcharinfo(0)+"', '"+gettime(5)+"', '"+gettime(6)+"', '"+gettime(7)+"', '"+@scashtarifa+"', '0', 'PIX PARA CASH')");
+									mes .npc$;
+									mes "Solicitação de saque feita com sucesso, seus CASH's já se encontram disponíveis para uso.";
+									close;
+									end;
+								
+							case 3:
+								next;
+								goto L_INIT;
+						}
+						
+				case 2:
+					next;
+					mes .npc$;
+					mes "Para depositar o seu CASH 'c' em PIX, será cobrada uma taxa de "+.tcashdep+"% em cima do valor requisitado.";
+					mes "Exemplo: Para solicitar o depósito de 100c digite 100 e poderá depositar pagando a tarifa.";
+					mes "O valor mínimo de depósito é de 1c";
+					mes "O valor máximo de depósito é de 1000c";
+					next;
+					mes .npc$;
+					mes "Digite o Valor:";
+					input @scash;
+					next;
+					set @scash,@scash * 100;
+					@scashtarifa = @scash + (@scash*(.tcashdep/100));
+					@scashtotal = (@scashtarifa - @scash)/100;
+					@scashconvert = @scashtarifa/100;
+					if(@scash < .vminimocashdep)
+					{
+						mes .npc$;
+						mes "Você digitou um valor abaixo do permitido.";
+						next;
+						goto L_INIT;
+					}
+					else if(@scash > .vmaximocashdep)
+					{
+						mes .npc$;
+						mes "Você digitou um valor acima do permitido.";
+						next;
+						goto L_INIT;
+					}
+					mes .npc$;
+					mes "Você deseja depositar "+@scash/100+"c, pagando uma tarifa de "+@scashtotal+"c?";
+					if(select("Sim","Não")==2)goto L_INIT;
+						next;
+						if(@scashconvert > #CASHPOINTS)
+						{
+							mes .npc$;
+							mes "Você digitou um valor acima do seu saldo CASH atual.";
+							mes "Considere calcular o valor da tarifa ou do seu saldo permitido antes de abrir uma solicitação.";
+							next;
+							goto L_INIT;
+						}
+						set @saldoupdate,@saldo + @scashtarifa;
+						set @cashvalor,@scashtarifa/100;
+						#CASHPOINTS -= @cashvalor;
+						dispbottom("Recebeu um PIX de "+@scashtarifa+". Total "+@saldoupdate+" pontos.");
+						query_sql("UPDATE `sistema_pix` SET `saldo` = '"+@saldoupdate+"' WHERE `sistema_pix`.`account_id` = '"+getcharid(3)+"'");
+						query_sql("INSERT INTO `sistema_pix_log` (`account_id`, `char_id`, `char_nome`, `dia`, `mes`, `ano`, `valor_sacado`, `valor_depositado`, `moeda`) VALUES ('"+getcharid(3)+"', '"+getcharid(0)+"', '"+strcharinfo(0)+"', '"+gettime(5)+"', '"+gettime(6)+"', '"+gettime(7)+"', '0', '"+@cashvalor+"', 'CASH PARA PIX')");
+						mes .npc$;
+						mes "Solicitação de depósito feita com sucesso, suas moedas PIX já se encontram disponíveis para uso.";
+						close;
+						end;
+						
+				case 3:
+					next;
+					close;
+					end;
+					
+				case 4:
+					next;
+					mes .npc$;
+					mes "Coloque suas informações aqui.";
+					close;
+					end;
+			}
+		
+		case 3:
+			next;
+			mes .npc$;
+			mes "Coloque suas informações aqui.";
+			close;
+			end;
+		
+		case 4:
+			next;
+			mes .npc$;
+			mes "Volte quando precisar!";
+			close;
+			end;
+	}
+end;
+
+OnInit:
+	//nome do npc
+	set .npc$,"[Sistema PIX]";
+	//tarifas de saque
+	set .tcash,0;
+	set .treal,15;
+	//tarifas de depósito (somente CASH)
+	set .tcashdep,0;
+	//valor mínimo saque
+	set .vminimocash,1000;//1,00c
+	set .vminimoreal,1000;//10,00R$
+	//valor mínimo depósito (somente CASH)
+	set .vminimocashdep,100;//1c
+	//valor máximo saque
+	set .vmaximocash,100000;//1000,00c
+	set .vmaximoreal,100000;//1000,00R$
+	//valor máximo depósito (somente CASH)
+	set .vmaximocashdep,100000;//1000c
+end;
+}
+	
+	
