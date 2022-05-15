@@ -550,10 +550,7 @@ L_LOJA:
 	{
 		case 1:
 			next;
-			callshop "RMTSHOP1",1;
-			npcshopattach "RMTSHOP1";
-			end;
-			close;
+			callfunc "rmtshop";
 		
 		case 2:
 			next;
@@ -651,10 +648,56 @@ L_LOJA:
 	}
 end;
 
-//Função ao selecionar item da loja
-OnBuyItem:
-mes .npc$;
-if (totalpontos==0){mes "Você não possui Pontos de Emblemas"; close;}
+OnInit:
+	//Nome do npc
+	set .npc$,"[Sistema RMT]";
+	
+	//Tarifas de saque
+	set .tcash,0; //0%
+	set .treal,15; //15%
+	
+	//Tarifas de depósito (somente CASH)
+	set .tcashdep,0; //0%
+	
+	//Valor mínimo saque
+	set .vminimocash,100; //1,00c
+	set .vminimoreal,1000; //10,00R$
+	
+	//Valor mínimo depósito (somente CASH)
+	set .vminimocashdep,100; //1,00c
+	
+	//Valor máximo saque
+	set .vmaximocash,100000; //1000,00c
+	set .vmaximoreal,100000; //1000,00R$
+	
+	//Valor máximo depósito (somente CASH)
+	set .vmaximocashdep,100000; //1000,00c
+	
+	//Tarifas de transferência (somente RMT)
+	set .solicreal,5; //5%
+	
+	//Valor mínimo transferência (somente RMT)
+	set .vminimosolicreal,100; //1,00R$
+	set .vmaximosolicreal,100000; //1000,00R$
+end;
+}
+
+// Núcleo da Loja RMT
+-	script	rmt_shop	-1,{ 
+function AddRMT; function Rhk; function Slotrmt; function R_Rn;
+//Funcionamento
+OnInit:
+	set .Announce,1;        //Mandar mensagem global ao terminar uma quest? (1: sim / 0: não)
+	set .ShowSlotrmt,1;     //Mostrar Slotrmts dos Itens?                   (2: todo equipamento / 1: somente aqueles que possuem Slotrmt maior que 0 / 0: nunca)
+	set .ShowID,1;          //Mostrar ID dos Itens?                         (1: sim / 0: não)
+	set .ShowZeny,1;        //Mostrar Custo de Zenys, caso exista?          (1: sim / 0: não)
+	set .MaxStack,1;        //Número máximo de itens de quest que podem ser comprados ao mesmo tempo.
+	
+	//Configuração Global
+	setarray .Points$[0],"#CASHPOINTS","Cash Points";
+	setarray .Shops$[1],"Geral";	
+	donpcevent "rmt_shop::OnLoadSql";
+	initnpctimer;
 end;
 
 //Carregar itens da tabela SQL para o NPC
@@ -667,30 +710,32 @@ OnLoadSql:
 		query_sql("SELECT `id`,`account_id`,`item_id`,`valor` FROM `sistema_pix_npc` WHERE `id` = "+.@j+" AND `id` > 0",.@id,.@account_id,.@item_id,.@valor);
 		if(.@id > 0)
 		{
-			if(.@k == 0)
-			{
-				npcshopdelitem "RMTSHOP1",512;
-			}
-				
 			setarray .ShopIDI1[.@k],.@item_id;
 			setarray .ShopQNT1[.@k],1;
 			setarray .ShopVLR1[.@k],.@valor;
 			setarray .ShopISQ1[.@k],.@id;
 			setarray .ShopACC1[.@k],.@account_id;
-			
-			npcshopadditem "RMTSHOP1", .ShopIDI1[.@k], .ShopVLR1[.@k];
+			AddRMT(1,.ShopIDI1[.@k],1,.ShopVLR1[.@k],0,.ShopISQ1[.@k],.ShopACC1[.@k]);
 			.@k++;
 		}
 	}
+	set .menu$,"";
+    for(set .@i,1; .@i<=getarraysize(.Shops$); set .@i,.@i+1) {
+            set .menu$, .menu$+.Shops$[.@i]+":";
+            npcshopdelitem "RMTSHOP"+.@i,909;
+    }
 end;
 
 //Recarregar itens da tabela SQL para o NPC
 OnRefreshSql:
 	set .@k,0;
 	
-	for(.@p = 0; .@p <= getarraysize(.ShopIDI1); .@p++)
+	for(.@l = 0; .@l <=getarraysize(.Shops$); .@l++)
 	{
-		npcshopdelitem "RMTSHOP1",.ShopIDI1[.@p];
+		for(.@p = 0; .@p <= getarraysize(.ShopIDI1); .@p++)
+		{
+			npcshopdelitem "RMTSHOP"+.@l,.ShopIDI1[.@p];
+		}
 	}
 	
 	query_sql("SELECT `id` FROM `sistema_pix_npc` order by `id` desc limit 1",.@idsql);
@@ -698,62 +743,171 @@ OnRefreshSql:
 	{
 		query_sql("SELECT `id`,`account_id`,`item_id`,`valor` FROM `sistema_pix_npc` WHERE `id` = "+.@j+" AND `id` > 0",.@id,.@account_id,.@item_id,.@valor);
 		if(.@id > 0)
-		{		
+		{
 			setarray .ShopIDI1[.@k],.@item_id;
 			setarray .ShopQNT1[.@k],1;
 			setarray .ShopVLR1[.@k],.@valor;
 			setarray .ShopISQ1[.@k],.@id;
 			setarray .ShopACC1[.@k],.@account_id;
-			
-			npcshopadditem "RMTSHOP1", .ShopIDI1[.@k], .ShopVLR1[.@k];
+			AddRMT(1,.ShopIDI1[.@k],1,.ShopVLR1[.@k],0,.ShopISQ1[.@k],.ShopACC1[.@k]);
 			.@k++;
 		}
 	}
 end;
 
 OnTimer5000:
-	donpcevent .nomeevent$+"::OnRefreshSql";
+	donpcevent "rmt_shop::OnRefreshSql";
 	setnpctimer 0;
 end;
-
-OnInit:
-	//nome do npc
-	set .npc$,"[Sistema RMT]";
-	set .nomeevent$,"Sistema RMT";
-	
-	//tarifas de saque
-	set .tcash,0; //0%
-	set .treal,15; //15%
-	
-	//tarifas de depósito (somente CASH)
-	set .tcashdep,0; //0%
-	
-	//valor mínimo saque
-	set .vminimocash,100; //1,00c
-	set .vminimoreal,1000; //10,00R$
-	
-	//valor mínimo depósito (somente CASH)
-	set .vminimocashdep,100; //1,00c
-	
-	//valor máximo saque
-	set .vmaximocash,100000; //1000,00c
-	set .vmaximoreal,100000; //1000,00R$
-	
-	//valor máximo depósito (somente CASH)
-	set .vmaximocashdep,100000; //1000,00c
-	
-	//tarifas de transferência (somente RMT)
-	set .solicreal,5; //5%
-	
-	//valor mínimo transferência (somente RMT)
-	set .vminimosolicreal,100; //1,00R$
-	set .vmaximosolicreal,100000; //1000,00R$
-	
-	donpcevent .nomeevent$+"::OnLoadSql";
-
-	initnpctimer;
+ 
+OnMenu:
+	mes "[Sistema RMT]";
+	mes "Nossos serviços avançados de busca sempre ofertará o menor preço de um produto encontrado no mercado!";
+	mes "^5f33e6Para prosseguir escolha uma opção:^000000";
+    set .@size, getarraysize(@i);
+    if (!.@size) set .@i, select(.menu$);
+    else if (.@size == 1) set .@i, @i[0];
+    else {
+            for(set .@j,0; .@j<.@size; set .@j,.@j+1)
+                    set .@menu$, .@menu$+.Shops$[@i[.@j]]+":";
+            set .@i, @i[select(.@menu$)-1];
+    }
+    deletearray @i[0],getarraysize(@i);
+    if (.Shops$[.@i] == "") {
+            message strcharinfo(0),"Um erro ocorreu, tire print desta tela e envie aos administradores do servidor.";
+			close;
+            end;
+    }
+    dispbottom "Selecione um item por vez.";
+    callshop "RMTSHOP"+.@i,1;
+    npcshopattach "RMTSHOP"+.@i;
 end;
+
+OnBuyItem:
+	setarray .@q[0],@bought_nameid[0],((@bought_quantity[0] > .MaxStack)?.MaxStack:@bought_quantity[0]);
+	copyarray .@q[3],getd(".q_"+.@q[0]+"[0]"),getarraysize(getd(".q_"+.@q[0]));
+	set .@q[2],.@q[1]*.@q[3];
+		
+	//proteção para alguer já ter comprado
+	if (!.@q[2] || .@q[2] > 30000) {
+		message strcharinfo(0),"Você não pode comprar "+getitemname(.@q[0])+".";
+		end;
+	}
+		
+	query_sql("SELECT `char_nome` FROM `sistema_pix_npc` WHERE `id` = "+.@q[6]+"",@charnome$);
+	mes "[Sistema RMT]";
+    mes "Item: [^0055FF"+((.@q[2] > 1)?.@q[2]+"x ":"")+Slotrmt(.@q[0])+"^000000]";
+	mes "ID: [^0055FF"+.@q[6]+"^000000]";
+	mes "Pertence: [^0055FF"+@charnome$+"^000000]";
+	mes(sprintf("Valor RMT: [^03B619%d,%d^000000]", (.@q[4]/100),(.@q[4]%100)));
+	next;
+    setarray @qe[1], getiteminfo(.@q[0],5), getiteminfo(.@q[0],11);
+    if (((@qe[1] & 1) || (@qe[1] & 256) || (@qe[1] & 512)) && @qe[2] > 0)
+            set .@preview,1;
+    addtimer 1000, strnpcinfo(0)+"::OnEnd";
+    while(1) {
+            switch(select(" ~ Comprar ^0055FF"+getitemname(.@q[0])+"^000000:"+((.@preview && !@qe[6])?" ~ Visualizar...":"")+": ~ ^777777Cancelar^000000")) {
+            case 1:
+                    if (@qe[0]) { 
+                            mes "[Sistema RMT]";
+                            mes "Sinto muito, mas você não possui todos os itens necessários para mim fabricar este item.";
+                            close;
+                    }
+                    if (!checkweight(.@q[0],.@q[2])) {
+                            mes "[Sistema RMT]";
+                            mes "^FF0000Você necessita de "+(((.@q[2]*getiteminfo(.@q[0],6))+Weight-MaxWeight)/10)+" Capacidade de peso adicional para concluir esta negociação.^000000";
+                            close;
+                    }
+                    if (getgroupid() < 2) {
+						if (.@q[4]) Zeny -= (.@q[4]*.@q[1]);
+					}
+					else {
+						if (.@q[4]) Zeny -= ((.@q[4]*.@q[1]) - ((.@q[4]*.@q[1]) * 30/100));
+					}
+                    if (.@q[5]) setd .Points$[0], getd(.Points$[0])-(.@q[5]*.@q[1]);
+                    if (.@q[6]) for(set .@i,6; .@i<getarraysize(.@q); set .@i,.@i+2)
+                            delitem .@q[.@i],.@q[.@i+1]*.@q[1];
+                    getitem .@q[0],.@q[2];
+                    if (.Announce) announce "[Sistema RMT]: O jogador ["+strcharinfo(0)+"] acabou de fazer o item [ "+((.@q[2] > 1)?.@q[2]+"x "+getitemname(.@q[0]):(getitemname(.@q[0])))+" ].",bc_all,0xFF1493;
+                    specialeffect2 699;
+                    close;
+            case 2:
+                    setarray @qe[3], getlook(LOOK_HEAD_BOTTOM), getlook(LOOK_HEAD_TOP), getlook(LOOK_HEAD_MID), 1;
+                    if (@qe[1] & 1) changelook LOOK_HEAD_BOTTOM, @qe[2];
+                    if (@qe[1] & 256) changelook LOOK_HEAD_TOP, @qe[2];
+                    if (@qe[1] & 512) changelook LOOK_HEAD_MID, @qe[2];
+                    break;
+            case 3:
+                    close;
+            }
+    }
+end;
+
+OnEnd:
+	if (@qe[6])
+	{
+		changelook LOOK_HEAD_BOTTOM, @qe[3];
+		changelook LOOK_HEAD_TOP, @qe[4];
+		changelook LOOK_HEAD_MID, @qe[5];
+	}
+	deletearray @qe[0],7;
+end;
+ 
+function AddRMT {
+    if (getitemname(getarg(1)) == "null")
+	{
+		debugmes "Recompensa da Quest #"+getarg(1)+" inválida (pulada).";
+		return;
+    }
+    setarray .@j[0],getarg(2),getarg(3),getarg(4);
+    for(set .@i,5; .@i<getargcount(); set .@i,.@i+2)
+	{
+        setarray .@j[.@i-2],getarg(.@i),getarg(.@i+1);
+    }
+    copyarray getd(".q_"+getarg(1)+"[0]"),.@j[0],getarraysize(.@j);
+    npcshopadditem "RMTSHOP"+getarg(0),getarg(1),((.ShowZeny)?getarg(3):0);
+    return;
+}
+ 
+function Rhk {
+    if (getarg(0) < getarg(1))
+	{
+		set @qe[0],1;
+		return "^FF0000";
+    }
+	else
+		return "^00FF00";
+	}
+}
+ 
+function Slotrmt {
+    set .@s$,getitemname(getarg(0));
+    switch(.ShowSlot)
+	{
+		case 1: if (!getitemslots(getarg(0))) return .@s$;
+		case 2: if (getiteminfo(getarg(0),2) == 4 || getiteminfo(getarg(0),2) == 5) return .@s$+" ["+getitemslots(getarg(0))+"]";
+		default: return .@s$;
+    }
+}
+ 
+function R_Rn {
+	setarray .@A$[0],"a","e","i","o","u";
+	set .@B$, "_"+getarg(0);
+	for(set .@i,0; .@i<5; set .@i,.@i+1)
+		if (compare(.@B$,"_"+.@A$[.@i])) return "an "+getarg(0);
+	return "a "+getarg(0);
+}
+
+end;
+}
+ 
+function	script	rmtshop	{
+	deletearray @i[0],getarraysize(@i);
+	for(set .@i,0; .@i<getargcount(); set .@i,.@i+1)
+		set @i[.@i],getarg(.@i);
+	doevent "rmt_shop::OnMenu";
+	end;
 }
 
 //====RMT_LOJA
--	shop	RMTSHOP1	-1,512:-1
+-	shop	RMTSHOP1	-1,909:-1
