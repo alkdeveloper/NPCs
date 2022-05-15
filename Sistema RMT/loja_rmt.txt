@@ -687,6 +687,8 @@ end;
 function AddRMT; function Rhk; function Slotrmt; function R_Rn;
 //Funcionamento
 OnInit:
+	freeloop(1);
+	
 	set .Announce,1;        //Mandar mensagem global ao terminar uma quest? (1: sim / 0: não)
 	set .ShowSlotrmt,1;     //Mostrar Slotrmts dos Itens?                   (2: todo equipamento / 1: somente aqueles que possuem Slotrmt maior que 0 / 0: nunca)
 	set .ShowID,1;          //Mostrar ID dos Itens?                         (1: sim / 0: não)
@@ -719,6 +721,7 @@ OnLoadSql:
 			.@k++;
 		}
 	}
+	freeloop(0);
 	set .menu$,"";
     for(set .@i,1; .@i<=getarraysize(.Shops$); set .@i,.@i+1) {
             set .menu$, .menu$+.Shops$[.@i]+":";
@@ -765,18 +768,26 @@ OnMenu:
 	mes "Nossos serviços avançados de busca sempre ofertará o menor preço de um produto encontrado no mercado!";
 	mes "^5f33e6Para prosseguir escolha uma opção:^000000";
     set .@size, getarraysize(@i);
-    if (!.@size) set .@i, select(.menu$);
-    else if (.@size == 1) set .@i, @i[0];
-    else {
-            for(set .@j,0; .@j<.@size; set .@j,.@j+1)
-                    set .@menu$, .@menu$+.Shops$[@i[.@j]]+":";
-            set .@i, @i[select(.@menu$)-1];
+    if (!.@size)
+	{
+		set .@i, select(.menu$);
+	}
+    else if (.@size == 1)
+	{
+		set .@i, @i[0];
+	}
+    else
+	{
+		for(set .@j,0; .@j<.@size; set .@j,.@j+1)
+			set .@menu$, .@menu$+.Shops$[@i[.@j]]+":";
+		set .@i, @i[select(.@menu$)-1];
     }
     deletearray @i[0],getarraysize(@i);
-    if (.Shops$[.@i] == "") {
-            message strcharinfo(0),"Um erro ocorreu, tire print desta tela e envie aos administradores do servidor.";
-			close;
-            end;
+    if (.Shops$[.@i] == "")
+	{
+		message strcharinfo(0),"Um erro ocorreu, tire print desta tela e envie aos administradores do servidor.";
+		close;
+		end;
     }
     dispbottom "Selecione um item por vez.";
     callshop "RMTSHOP"+.@i,1;
@@ -793,53 +804,61 @@ OnBuyItem:
 		message strcharinfo(0),"Você não pode comprar "+getitemname(.@q[0])+".";
 		end;
 	}
-		
+	
 	query_sql("SELECT `char_nome` FROM `sistema_pix_npc` WHERE `id` = "+.@q[6]+"",@charnome$);
+	query_sql("SELECT `saldo` FROM `sistema_pix` WHERE `account_id`='"+getcharid(3)+"'",@saldormtcomp);
 	mes "[Sistema RMT]";
     mes "Item: [^0055FF"+((.@q[2] > 1)?.@q[2]+"x ":"")+Slotrmt(.@q[0])+"^000000]";
 	mes "ID: [^0055FF"+.@q[6]+"^000000]";
 	mes "Pertence: [^0055FF"+@charnome$+"^000000]";
 	mes(sprintf("Valor RMT: [^03B619%d,%d^000000]", (.@q[4]/100),(.@q[4]%100)));
+	mes(sprintf("Seu Saldo RMT: [^E8183A%d,%d^000000]", (@saldormtcomp/100),(@saldormtcomp%100)));
 	next;
     setarray @qe[1], getiteminfo(.@q[0],5), getiteminfo(.@q[0],11);
     if (((@qe[1] & 1) || (@qe[1] & 256) || (@qe[1] & 512)) && @qe[2] > 0)
-            set .@preview,1;
+		set .@preview,1;
     addtimer 1000, strnpcinfo(0)+"::OnEnd";
-    while(1) {
-            switch(select(" ~ Comprar ^0055FF"+getitemname(.@q[0])+"^000000:"+((.@preview && !@qe[6])?" ~ Visualizar...":"")+": ~ ^777777Cancelar^000000")) {
-            case 1:
-                    if (@qe[0]) { 
-                            mes "[Sistema RMT]";
-                            mes "Sinto muito, mas você não possui todos os itens necessários para mim fabricar este item.";
-                            close;
-                    }
-                    if (!checkweight(.@q[0],.@q[2])) {
-                            mes "[Sistema RMT]";
-                            mes "^FF0000Você necessita de "+(((.@q[2]*getiteminfo(.@q[0],6))+Weight-MaxWeight)/10)+" Capacidade de peso adicional para concluir esta negociação.^000000";
-                            close;
-                    }
-                    if (getgroupid() < 2) {
-						if (.@q[4]) Zeny -= (.@q[4]*.@q[1]);
-					}
-					else {
-						if (.@q[4]) Zeny -= ((.@q[4]*.@q[1]) - ((.@q[4]*.@q[1]) * 30/100));
-					}
-                    if (.@q[5]) setd .Points$[0], getd(.Points$[0])-(.@q[5]*.@q[1]);
-                    if (.@q[6]) for(set .@i,6; .@i<getarraysize(.@q); set .@i,.@i+2)
-                            delitem .@q[.@i],.@q[.@i+1]*.@q[1];
-                    getitem .@q[0],.@q[2];
-                    if (.Announce) announce "[Sistema RMT]: O jogador ["+strcharinfo(0)+"] acabou de fazer o item [ "+((.@q[2] > 1)?.@q[2]+"x "+getitemname(.@q[0]):(getitemname(.@q[0])))+" ].",bc_all,0xFF1493;
-                    specialeffect2 699;
-                    close;
-            case 2:
-                    setarray @qe[3], getlook(LOOK_HEAD_BOTTOM), getlook(LOOK_HEAD_TOP), getlook(LOOK_HEAD_MID), 1;
-                    if (@qe[1] & 1) changelook LOOK_HEAD_BOTTOM, @qe[2];
-                    if (@qe[1] & 256) changelook LOOK_HEAD_TOP, @qe[2];
-                    if (@qe[1] & 512) changelook LOOK_HEAD_MID, @qe[2];
-                    break;
-            case 3:
-                    close;
-            }
+    while(1)
+	{
+		switch(select(" ~ Comprar ^0055FF"+getitemname(.@q[0])+"^000000:"+((.@preview && !@qe[6])?" ~ Visualizar...":"")+": ~ ^777777Cancelar^000000"))
+		{
+			case 1:
+				query_sql("SELECT `saldo` FROM `sistema_pix` WHERE `account_id`='"+getcharid(3)+"'",@saldormtcomp);
+				query_sql("SELECT `saldo` FROM `sistema_pix` WHERE `account_id`='"+.@q[7]+"'",@saldormtvend);
+				if (.@q[4] > @saldormtcomp) { 
+					mes "[Sistema RMT]";
+					mes "Sinto muito, mas você não possui moedas RMT suficiente para comprar o item.";
+					next;
+					callfunc "rmtshop";
+				}
+				if (!checkweight(.@q[0],.@q[2])) {
+					mes "[Sistema RMT]";
+					mes "^FF0000Você necessita de "+(((.@q[2]*getiteminfo(.@q[0],6))+Weight-MaxWeight)/10)+" Capacidade de peso adicional para concluir esta negociação.^000000";
+					close;
+					end;
+				}
+				set @saldoupdatecmp,(@saldormtcomp-.@q[4]);
+				set @saldoupdatevnd,(@saldormtvend+.@q[4]);
+				query_sql("UPDATE `sistema_pix` SET `saldo` = '"+@saldoupdatecmp+"' WHERE `sistema_pix`.`account_id` = '"+getcharid(3)+"'");
+				query_sql("UPDATE `sistema_pix` SET `saldo` = '"+@saldoupdatevnd+"' WHERE `sistema_pix`.`account_id` = '"+.@q[7]+"'");
+				query_sql("DELETE FROM `sistema_pix_npc` WHERE `sistema_pix_npc`.`id` = '"+.@q[6]+"'");
+				if (.@q[5]) setd .Points$[0], getd(.Points$[0])-(.@q[5]*.@q[1]);
+				getitem .@q[0],.@q[2];
+				if (.Announce) announce "[Sistema RMT]: O jogador ["+strcharinfo(0)+"] acabou de comprar o item [ "+((.@q[2] > 1)?.@q[2]+"x "+getitemname(.@q[0]):(getitemname(.@q[0])))+" ].",bc_all,0xFF1493;
+				specialeffect2 699;
+				close;
+				end;
+				
+			case 2:
+				setarray @qe[3], getlook(LOOK_HEAD_BOTTOM), getlook(LOOK_HEAD_TOP), getlook(LOOK_HEAD_MID), 1;
+				if (@qe[1] & 1) changelook LOOK_HEAD_BOTTOM, @qe[2];
+				if (@qe[1] & 256) changelook LOOK_HEAD_TOP, @qe[2];
+				if (@qe[1] & 512) changelook LOOK_HEAD_MID, @qe[2];
+				break;
+				
+			case 3:
+				close;
+		}
     }
 end;
 
@@ -878,7 +897,6 @@ function Rhk {
 	else
 		return "^00FF00";
 	}
-}
  
 function Slotrmt {
     set .@s$,getitemname(getarg(0));
