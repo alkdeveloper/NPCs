@@ -123,6 +123,11 @@ L_PIX:
 	}
 	else
 	{
+		//Verifica se está falando com um administrador
+		if(getgroupid() == 99)
+		{
+			goto L_ADM;
+		}
 		goto L_INIT;
 	}
 end;
@@ -423,6 +428,120 @@ L_INIT:
 	}
 end;
 
+//Diálogo com o administrador
+L_ADM:
+	mes .npc$;
+	mes "Olá ADM, oque você deseja fazer?";
+	switch(select("Ver Solicitações de Saque","Ver Logs das Transações","Limpar Logs","Menu Principal"))
+	{
+		case 1:
+			next;
+			mes .npc$;
+			mes "Digite a entrada inicial:";
+			input @entinicial;
+			next;
+			if(@entinicial < 0)
+			{
+				mes .npc$;
+				mes "Digite um número maior ou igual a 0.";
+				next;
+				goto L_ADM;
+			}
+			mes .npc$;
+			mes "Digite a entrada final:";
+			input @entfinal;
+			next;
+			if(@entfinal <= 0)
+			{
+				mes .npc$;
+				mes "Digite um número maior que 0.";
+				next;
+				goto L_ADM;
+			}
+			for(@i = @entinicial; @i < @entfinal; @i++)
+			{
+				query_sql("SELECT `account_id`,`char_id`,`char_nome`,`chave_pix`,`valor_saque` FROM `sistema_pix_saque` order by `dia` desc limit "+@i+","+@i+1+"",@account_id,@char_id,@char_nome$,@chave_pix$,@valorsaque);
+				query_sql("SELECT `p_nome`,`s_nome`,`telefone` FROM `sistema_pix` WHERE `chave_pix`='"+@chave_pix$+"'",@p_nome$,@s_nome$,@telefone);
+				mes .npc$;
+				mes "Entrada: [^2641EA"+(@i+1)+"º^000000]";
+				mes "Id de Conta: [^2641EA"+@account_id+"^000000]";
+				mes "Nome: [^2641EA"+@p_nome$+" "+@s_nome$+"^000000]";
+				mes "Telefone: [^2641EA"+@telefone+"^000000]";
+				mes "Chave RMT: [^2641EA"+@chave_pix$+"^000000]";
+				mes(sprintf("Valor Solicitado: [^03B619%d,%d^000000] R$", (@valorsaque/100), (@valorsaque%100)));
+				mes "Deseja dar baixa?";
+				if(select("Sim","Não")==2)continue;
+					next;
+					query_sql("INSERT INTO `sistema_pix_log` (`account_id`, `char_id`, `char_nome`, `dia`, `mes`, `ano`, `valor_sacado`, `valor_depositado`, `moeda`) VALUES ('"+@account_id+"', '"+@char_id+"', '"+@char_nome$+"', '"+gettime(5)+"', '"+gettime(6)+"', '"+gettime(7)+"', '"+@valorsaque+"', '0', 'RMT PARA REAL')");
+					query_sql("DELETE FROM `sistema_pix_saque` WHERE `sistema_pix_saque`.`account_id` = '"+@account_id+"'");
+					mes .npc$;
+					mes "A baixa foi dada com sucesso!";
+					mes "Deseja Continuar?";
+					if(select("Sim","Não")==2)break;
+						next;
+						continue;
+			}
+			end;
+		
+		case 2:
+			next;
+			mes .npc$;
+			mes "Digite a entrada inicial:";
+			input @entinicial;
+			next;
+			if(@entinicial < 0)
+			{
+				mes .npc$;
+				mes "Digite um número maior ou igual a 0.";
+				next;
+				goto L_ADM;
+			}
+			mes .npc$;
+			mes "Digite a entrada final:";
+			input @entfinal;
+			next;
+			if(@entfinal <= 0)
+			{
+				mes .npc$;
+				mes "Digite um número maior que 0.";
+				next;
+				goto L_ADM;
+			}
+			for(@i = @entinicial; @i < @entfinal; @i++)
+			{
+				query_sql("SELECT `account_id`,`char_nome`,`valor_sacado`,`valor_depositado`,`moeda` FROM `sistema_pix_log` order by `id` desc limit "+@i+","+@i+1+"",@account_id,@char_nome$,@valorsacado,@valordepositado,@status$);
+				mes .npc$;
+				mes "Entrada: [^2641EA"+(@i+1)+"º^000000]";
+				mes "Id de Conta: [^2641EA"+@account_id+"^000000]";
+				mes "Char Nome: [^2641EA"+@char_nome$+"^000000]";
+				mes "Valor Sacado: [^2641EA"+@valorsacado+"^000000]";
+				mes "Valor Depositado: [^2641EA"+@valordepositado+"^000000]";
+				mes "Status: [^2641EA"+@status$+"^000000]";
+				next;
+				continue;
+			}
+			close;
+			end;
+			
+		case 3:
+			next;
+			mes .npc$;
+			mes "Tem certeza que deseja limpar os dados da tabela?";
+			if(select("Sim","Não")==2)goto L_ADM;
+				next;
+				query_sql("TRUNCATE `sistema_pix_log`");
+				mes .npc$;
+				mes "Tabela limpa!";
+				next;
+				goto L_ADM;
+		
+		case 4:
+			next;
+			goto L_INIT;
+	
+	}
+end;
+
 OnInit:
 	//nome do npc
 	set .npc$,"[Sistema RMT]";
@@ -456,5 +575,3 @@ OnInit:
 	set .vmaximosolicreal,100000; //1000,00R$
 end;
 }
-	
-	
