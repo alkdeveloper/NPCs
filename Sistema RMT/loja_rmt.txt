@@ -825,6 +825,13 @@ OnBuyItem:
 			case 1:
 				query_sql("SELECT `saldo` FROM `sistema_pix` WHERE `account_id`='"+getcharid(3)+"'",@saldormtcomp);
 				query_sql("SELECT `saldo` FROM `sistema_pix` WHERE `account_id`='"+.@q[7]+"'",@saldormtvend);
+				if (getcharid(3) == .@q[7])
+				{
+					mes "[Sistema RMT]";
+					mes "Você não pode comprar itens de sí mesmo!";
+					next;
+					callfunc "rmtshop";
+				}
 				if (.@q[4] > @saldormtcomp) { 
 					mes "[Sistema RMT]";
 					mes "Sinto muito, mas você não possui moedas RMT suficiente para comprar o item.";
