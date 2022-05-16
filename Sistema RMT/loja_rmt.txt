@@ -152,8 +152,9 @@ L_INIT:
 			mes(sprintf("Saldo RMT: [^03B619%d,%d^000000]", (@saldo/100),(@saldo%100)));
 			mes(sprintf("Saldo CASH: [^F8C010%d^000000]", #CASHPOINTS));
 			mes(sprintf("Saque em Validação: [^F81010%d,%d^000000]", (@valor_solic/100),(@valor_solic%100)));
-			switch(select("Sacar","Transferir","Informações"))
+			switch(select("Sacar","Transferir","CASH para RMT","Informações"))
 			{
+				//Saque
 				case 1:
 					next;
 					mes .npc$;
@@ -397,13 +398,78 @@ L_INIT:
 						mes "A tranferência foi enviada com sucesso!";
 						close;
 						end;
-					
+						
+				//Converter CASH em RMT
 				case 3:
+					next;
+					mes .npc$;
+					mes "Para converter o seu CASH 'c' em RMT, será cobrada uma taxa de "+.tcashdep+"% em cima do valor requisitado.";
+					mes "Exemplo: Para solicitar o depósito de 100c digite 100 e poderá depositar pagando a tarifa.";
+					mes "O valor mínimo de depósito é de 1c";
+					mes "O valor máximo de depósito é de 1000c";
+					next;
+					mes .npc$;
+					mes "Digite o Valor:";
+					input @scash;
+					next;
+					set @scash,@scash * 100;
+					@scashtarifa = @scash + (@scash*(.tcashdep/100));
+					@scashtotal = (@scashtarifa - @scash)/100;
+					@scashconvert = @scashtarifa/100;
+					if(@scash < .vminimocashdep)
+					{
+						mes .npc$;
+						mes "Você digitou um valor abaixo do permitido.";
+						next;
+						goto L_INIT;
+					}
+					else if(@scash > .vmaximocashdep)
+					{
+						mes .npc$;
+						mes "Você digitou um valor acima do permitido.";
+						next;
+						goto L_INIT;
+					}
+					mes .npc$;
+					mes "Você deseja depositar "+@scash/100+"c, pagando uma tarifa de "+@scashtotal+"c?";
+					if(select("Sim","Não")==2)goto L_INIT;
+						next;
+						mes .npc$;
+						mes "Digite a senha de sua chave RMT:";
+						input @senha_chave;
+						next;
+						if (@senha_chave != @senha)
+						{
+							mes .npc$;
+							mes "Você digitou a senha errada, por favor tente novamente!";
+							next;
+							goto L_INIT;
+						}
+						if(@scashconvert > #CASHPOINTS)
+						{
+							mes .npc$;
+							mes "Você digitou um valor acima do seu saldo CASH atual.";
+							mes "Considere calcular o valor da tarifa ou do seu saldo permitido antes de abrir uma solicitação.";
+							next;
+							goto L_INIT;
+						}
+						set @saldoupdate,@saldo + @scashtarifa;
+						set @cashvalor,@scashtarifa/100;
+						#CASHPOINTS -= @cashvalor;
+						dispbottom("Recebeu um RMT de "+@scashtarifa+". Total "+@saldoupdate+" pontos.");
+						query_sql("UPDATE `sistema_pix` SET `saldo` = '"+@saldoupdate+"' WHERE `sistema_pix`.`account_id` = '"+getcharid(3)+"'");
+						query_sql("INSERT INTO `sistema_pix_log` (`account_id`, `char_id`, `char_nome`, `dia`, `mes`, `ano`, `valor_sacado`, `valor_depositado`, `moeda`) VALUES ('"+getcharid(3)+"', '"+getcharid(0)+"', '"+strcharinfo(0)+"', '"+gettime(5)+"', '"+gettime(6)+"', '"+gettime(7)+"', '0', '"+@cashvalor+"', 'CASH PARA RMT')");
+						mes .npc$;
+						mes "Solicitação de depósito feita com sucesso, suas moedas RMT já se encontram disponíveis para uso.";
+						close;
+						end;
+					
+				case 4:
 					next;
 					close;
 					end;
 					
-				case 4:
+				case 5:
 					next;
 					mes .npc$;
 					mes "Coloque suas informações aqui.";
@@ -468,6 +534,8 @@ L_ADM:
 				mes "Telefone: [^2641EA"+@telefone+"^000000]";
 				mes "Chave RMT: [^2641EA"+@chave_pix$+"^000000]";
 				mes(sprintf("Valor Solicitado: [^03B619%d,%d^000000] R$", (@valorsaque/100), (@valorsaque%100)));
+				next;
+				mes .npc$;
 				mes "Deseja dar baixa?";
 				if(select("Sim","Não")==2)continue;
 					next;
@@ -475,11 +543,9 @@ L_ADM:
 					query_sql("DELETE FROM `sistema_pix_saque` WHERE `sistema_pix_saque`.`account_id` = '"+@account_id+"'");
 					mes .npc$;
 					mes "A baixa foi dada com sucesso!";
-					mes "Deseja Continuar?";
-					if(select("Sim","Não")==2)break;
-						next;
-						continue;
+					break;
 			}
+			close;
 			end;
 		
 		case 2:
