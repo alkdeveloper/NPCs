@@ -19,7 +19,8 @@
 prontera,156,150,3	script	Sistema RMT	4_M_MANAGER,{
 	
 L_PIX:
-	if(!#RMT)
+	query_sql("SELECT `account_id` FROM `sistema_pix` WHERE `account_id`='"+getcharid(3)+"'",@verify);
+	if(@verify <= 0)
 	{
 		mes .npc$;
 		mes "Para acessar o sistema é necessário criar a sua chave RMT.";
@@ -42,7 +43,7 @@ L_PIX:
 			mes "Valores de 1 a 31.";
 			input @dia;
 			next;
-			if(@dia < 1 && @dia > 31)
+			if(@dia <= 0 || @dia > 31)
 			{
 				mes .npc$;
 				mes "Valor que foi digitado está errado, por favor digite valores entre 1 e 31.";
@@ -54,7 +55,7 @@ L_PIX:
 			mes "Valores de 1 a 12.";
 			input @mes;
 			next;
-			if(@mes < 1 && @mes > 12)
+			if(@mes <= 0 || @mes > 12)
 			{
 				mes .npc$;
 				mes "Valor que foi digitado está errado, por favor digite valores entre 1 e 12.";
@@ -66,7 +67,7 @@ L_PIX:
 			mes "Valores de 1930 a 2022.";
 			input @ano;
 			next;
-			if(@ano < 1930 && @ano > 2022)
+			if(@ano < 1930 || @ano > 2022)
 			{
 				mes .npc$;
 				mes "Valor que foi digitado está errado, por favor digite valores entre 1930 e 2022.";
@@ -74,13 +75,41 @@ L_PIX:
 				goto L_PIX;
 			}
 			mes .npc$;
-			mes "Insira um número de celular válido sem DD seguindo o paramêtro 9NUMERO, exemplo: 954852213.";
-			input @telefone;
+			mes "Insira o DDD do seu celular válido sem o digito 9:";
+			mes "Exemplo: 75.";
+			input @ddd;
 			next;
-			if(@telefone < 100000000 && @telefone > 999999999)
+			if (@ddd <= 10 || @ddd > 99)
 			{
 				mes .npc$;
-				mes "Valor que foi digitado está errado, por favor digite um número de celular válido sem DD seguindo o paramêtro 9NUMERO, exemplo: 954852213.";
+				mes "Valor que foi digitado está errado, por favor digite um número válido.";
+				mes "Exemplo: 11.";
+				next;
+				goto L_PIX;
+			}
+			mes .npc$;
+			mes "Insira a primeira parte do número do seu celular com o dígito 9:";
+			mes "Exemplo: 98826.";
+			input @telefone;
+			next;
+			if(@telefone < 10000 || @telefone > 99999)
+			{
+				mes .npc$;
+				mes "Valor que foi digitado está errado, por favor digite um número de celular válido.";
+				mes "Exemplo: 98826.";
+				next;
+				goto L_PIX;
+			}
+			mes .npc$;
+			mes "Insira a primeira parte do número do seu celular com o dígito 9:";
+			mes "Exemplo: 2951.";
+			input @telefone_s;
+			next;
+			if(@telefone_s <= 1 || @telefone_s > 9999)
+			{
+				mes .npc$;
+				mes "Valor que foi digitado está errado, por favor digite um número de celular válido.";
+				mes "Exemplo: 2951.";
 				next;
 				goto L_PIX;
 			}
@@ -94,7 +123,7 @@ L_PIX:
 			mes "Valor inicial para a senha é de 100000 e o valor final 999999.";
 			input @senha_pix;
 			next;
-			if(@senha_pix < 100000 && @senha_pix > 999999)
+			if(@senha_pix < 100000 || @senha_pix > 999999)
 			{
 				mes .npc$;
 				mes "Valor que foi digitado está errado, por favor digite valores entre 100000 e 999999.";
@@ -106,15 +135,14 @@ L_PIX:
 			mes "Nome: "+@p_nome$+".";
 			mes "Sobrenome: "+@s_nome$+".";
 			mes "Nascimento: "+@dia+"/"+@mes+"/"+@ano+".";
-			mes "Telefone: "+@telefone+".";
+			mes "Telefone: "+@ddd+""+@telefone+""+@telefone_s+".";
 			mes "Chave: "+@chave_pix$+".";
 			mes "Senha: "+@senha_pix+".";
 			if(select("Estão Corretos","Quero Mudar")==2)goto L_PIX;
 				next;
 				mes .npc$;
 				mes "Estou dando entrada no sistema, aguarde...";
-				query_sql("INSERT INTO `sistema_pix` (`account_id`, `p_nome`, `s_nome`, `dia`, `mes`, `ano`, `telefone`, `chave_pix`, `senha`, `saldo`) VALUES ('"+getcharid(3)+"', '"+@p_nome$+"', '"+@s_nome$+"', '"+@dia+"', '"+@mes+"', '"+@ano+"', '"+@telefone+"', '"+@chave_pix$+"', '"+@senha_pix+"', '0')");
-				set #RMT,1;
+				query_sql("INSERT INTO `sistema_pix` (`account_id`, `p_nome`, `s_nome`, `dia`, `mes`, `ano`, `ddd`, `telefone`, `chave_pix`, `senha`, `saldo`) VALUES ('"+getcharid(3)+"', '"+@p_nome$+"', '"+@s_nome$+"', '"+@dia+"', '"+@mes+"', '"+@ano+"', '"+@ddd+"', '"+@telefone+""+@telefone_s+"', '"+@chave_pix$+"', '"+@senha_pix+"', '0')");
 				next;
 				mes .npc$;
 				mes "Tudo certo! Fale comigo novamente para acessar as funções do sistema.";
@@ -144,15 +172,15 @@ L_INIT:
 		
 		case 2:
 			next;
-			query_sql("SELECT `telefone`,`chave_pix`,`saldo`,`senha` FROM `sistema_pix` WHERE `account_id`='"+getcharid(3)+"'",@telefone,@chave_pix$,@saldo,@senha);
+			query_sql("SELECT `ddd`,`telefone`,`chave_pix`,`saldo`,`senha` FROM `sistema_pix` WHERE `account_id`='"+getcharid(3)+"'",@ddd,@telefone,@chave_pix$,@saldo,@senha);
 			query_sql("SELECT `valor_saque` FROM `sistema_pix_saque` WHERE `account_id`='"+getcharid(3)+"'",@valor_solic);
 			mes .npc$;
 			mes(sprintf("Chave RMT: [^2641EA%s^000000]", @chave_pix$));
-			mes(sprintf("Telefone: [^2641EA%d^000000]", @telefone));
+			mes(sprintf("Telefone: [^2641EA%d%d^000000]", @ddd, @telefone));
 			mes(sprintf("Saldo RMT: [^03B619%d,%d^000000]", (@saldo/100),(@saldo%100)));
 			mes(sprintf("Saldo CASH: [^F8C010%d^000000]", #CASHPOINTS));
 			mes(sprintf("Saque em Validação: [^F81010%d,%d^000000]", (@valor_solic/100),(@valor_solic%100)));
-			switch(select("Sacar","Transferir","CASH para RMT","Informações"))
+			switch(select("Sacar","Transferir",.mode ? "Depositar Moedas" : "CASH para RMT","Informações"))
 			{
 				//Saque
 				case 1:
@@ -357,7 +385,7 @@ L_INIT:
 					mes .npc$;
 					mes "Dados da Tranferência:";
 					mes "Nome: ^2641EA"+@p_nome$+" "+@s_nome$+".^000000";
-					mes "Telefone: ^2641EA"+@telefone+".^000000";
+					mes "Telefone: ^2641EA"+@ddd+"^2641EA"+@telefone+".^000000";
 					mes "Chave RMT: ^2641EA"+@chave_rmt$+".^000000";
 					if(select("Prosseguir","Voltar")==2)goto L_INIT;
 					next;
@@ -399,9 +427,39 @@ L_INIT:
 						close;
 						end;
 						
-				//Converter CASH em RMT
+				//0 - Converter CASH em RMT
+				//1 - Converter Moeda em RMT
 				case 3:
 					next;
+					if(.mode > 0)
+					{
+						mes .npc$;
+						mes "Você deseja depositar suas Moedas RMT?";
+						if(select("Sim","Não")==2)goto L_INIT;
+							next;
+							mes .npc$;
+							mes(sprintf("1x Moeda equivale a %d,%d RMT", (.rmtbalance/100), (.rmtbalance%100)));
+							mes "Digite a quantidade de Moedas que deseja depositar:";
+							input @moedas;
+							next;
+							if(countitem(.rmtid) < @moedas)
+							{
+								mes .npc$;
+								mes "Você não tem a quantidade de Moedas informadas, por favor tente novamente!";
+								next;
+								goto L_INIT;
+							}
+							delitem .rmtid,@moedas;
+							set @total,@moedas*.rmtbalance;
+							set @saldoupdate,@saldo + @total;
+							dispbottom("Recebeu um RMT de "+@total+". Total "+@saldoupdate+" pontos.");
+							query_sql("UPDATE `sistema_pix` SET `saldo` = '"+@saldoupdate+"' WHERE `sistema_pix`.`account_id` = '"+getcharid(3)+"'");
+							query_sql("INSERT INTO `sistema_pix_log` (`account_id`, `char_id`, `char_nome`, `dia`, `mes`, `ano`, `valor_sacado`, `valor_depositado`, `moeda`) VALUES ('"+getcharid(3)+"', '"+getcharid(0)+"', '"+strcharinfo(0)+"', '"+gettime(5)+"', '"+gettime(6)+"', '"+gettime(7)+"', '0', '"+@total+"', 'MOEDA PARA RMT')");
+							mes .npc$;
+							mes "Suas moedas RMT já se encontram disponíveis para uso no Painel RMT/Vendas.";
+							close;
+							end;
+					}
 					mes .npc$;
 					mes "Para converter o seu CASH 'c' em RMT, será cobrada uma taxa de "+.tcashdep+"% em cima do valor requisitado.";
 					mes "Exemplo: Para solicitar o depósito de 100c digite 100 e poderá depositar pagando a tarifa.";
@@ -726,31 +784,42 @@ OnInit:
 	//Nome do npc
 	set .npc$,"[Sistema RMT]";
 	
+	//MODUS OPERANDI DO SISTEMA DE CONVERSÃO
+	//Valor 0 - O NPC vai converter CASH em RMT
+	//Valor 1 - O NPC irá detectar uma moeda do inventário e transformar em RMT
+	set .mode,1;
+	//Caso tenha definido .mode como 1, indique o ID do item que será a moeda que o npc trocará por RMT
+	//Padrão 501 - Poção Vermelha, apenas para testes.
+	set .rmtid,501;
+	//1 moeda equivale a quantos RMT?
+	//Padrão 1,00 - 1 moeda equivale a 1,00 RMT definido como 100
+	set .rmtbalance,100;
+	
 	//Tarifas de saque
 	set .tcash,0; //0%
 	set .treal,15; //15%
 	
-	//Tarifas de depósito (somente CASH)
+	//Tarifas de depósito (Somente CASH)
 	set .tcashdep,0; //0%
 	
 	//Valor mínimo saque
 	set .vminimocash,100; //1,00c
 	set .vminimoreal,1000; //10,00R$
 	
-	//Valor mínimo depósito (somente CASH)
+	//Valor mínimo depósito (Somente CASH)
 	set .vminimocashdep,100; //1,00c
 	
 	//Valor máximo saque
 	set .vmaximocash,100000; //1000,00c
 	set .vmaximoreal,100000; //1000,00R$
 	
-	//Valor máximo depósito (somente CASH)
+	//Valor máximo depósito (Somente CASH)
 	set .vmaximocashdep,100000; //1000,00c
 	
-	//Tarifas de transferência (somente RMT)
+	//Tarifas de transferência (Somente RMT)
 	set .solicreal,5; //5%
 	
-	//Valor mínimo transferência (somente RMT)
+	//Valor mínimo transferência (Somente RMT)
 	set .vminimosolicreal,100; //1,00R$
 	set .vmaximosolicreal,100000; //1000,00R$
 end;
@@ -762,6 +831,8 @@ function AddRMT; function Rhk; function Slotrmt; function R_Rn;
 //Funcionamento
 OnInit:
 	freeloop(1);
+	
+	set .npc$,"[Sistema RMT]"; //Nome do NPC
 	
 	set .Announce,1;        //Mandar mensagem global ao terminar uma quest? (1: sim / 0: não)
 	set .ShowSlotrmt,1;     //Mostrar Slotrmts dos Itens?                   (2: todo equipamento / 1: somente aqueles que possuem Slotrmt maior que 0 / 0: nunca)
@@ -838,7 +909,7 @@ OnTimer5000:
 end;
  
 OnMenu:
-	mes "[Sistema RMT]";
+	mes .npc$;
 	mes "Nossos serviços avançados de busca sempre ofertará o menor preço de um produto encontrado no mercado!";
 	mes "^5f33e6Para prosseguir escolha uma opção:^000000";
     set .@size, getarraysize(@i);
@@ -872,16 +943,14 @@ OnBuyItem:
 	setarray .@q[0],@bought_nameid[0],((@bought_quantity[0] > .MaxStack)?.MaxStack:@bought_quantity[0]);
 	copyarray .@q[3],getd(".q_"+.@q[0]+"[0]"),getarraysize(getd(".q_"+.@q[0]));
 	set .@q[2],.@q[1]*.@q[3];
-		
-	//proteção para alguer já ter comprado
-	if (!.@q[2] || .@q[2] > 30000) {
+	if (!.@q[2])
+	{
 		message strcharinfo(0),"Você não pode comprar "+getitemname(.@q[0])+".";
 		end;
 	}
-	
 	query_sql("SELECT `char_nome` FROM `sistema_pix_npc` WHERE `id` = "+.@q[6]+"",@charnome$);
-	query_sql("SELECT `saldo` FROM `sistema_pix` WHERE `account_id`='"+getcharid(3)+"'",@saldormtcomp);
-	mes "[Sistema RMT]";
+	query_sql("SELECT `senha`,`saldo` FROM `sistema_pix` WHERE `account_id`='"+getcharid(3)+"'",@senharmt,@saldormtcomp);
+	mes .npc$;
     mes "Item: [^0055FF"+((.@q[2] > 1)?.@q[2]+"x ":"")+Slotrmt(.@q[0])+"^000000]";
 	mes "ID: [^0055FF"+.@q[6]+"^000000]";
 	mes "Pertence: [^0055FF"+@charnome$+"^000000]";
@@ -897,27 +966,50 @@ OnBuyItem:
 		switch(select(" ~ Comprar ^0055FF"+getitemname(.@q[0])+"^000000:"+((.@preview && !@qe[6])?" ~ Visualizar...":"")+": ~ ^777777Cancelar^000000"))
 		{
 			case 1:
+				next;
+				mes .npc$;
+				mes "Digite a senha de sua chave RMT:";
+				input @senha_chave;
+				next;
+				if (@senha_chave != @senharmt)
+				{
+					mes .npc$;
+					mes "Você digitou a senha errada, por favor tente novamente!";
+					next;
+					callfunc "rmtshop";
+				}
 				query_sql("SELECT `saldo` FROM `sistema_pix` WHERE `account_id`='"+getcharid(3)+"'",@saldormtcomp);
 				query_sql("SELECT `saldo` FROM `sistema_pix` WHERE `account_id`='"+.@q[7]+"'",@saldormtvend);
 				if (getcharid(3) == .@q[7])
 				{
-					mes "[Sistema RMT]";
+					mes .npc$;
 					mes "Você não pode comprar itens de sí mesmo!";
 					next;
 					callfunc "rmtshop";
 				}
 				if (.@q[4] > @saldormtcomp) { 
-					mes "[Sistema RMT]";
+					mes .npc$;
 					mes "Sinto muito, mas você não possui moedas RMT suficiente para comprar o item.";
 					next;
 					callfunc "rmtshop";
 				}
 				if (!checkweight(.@q[0],.@q[2])) {
-					mes "[Sistema RMT]";
+					mes .npc$;
 					mes "^FF0000Você necessita de "+(((.@q[2]*getiteminfo(.@q[0],6))+Weight-MaxWeight)/10)+" Capacidade de peso adicional para concluir esta negociação.^000000";
 					close;
 					end;
 				}
+				
+				//Proteção para caso alguém já tenha comprado indisponibilizar a venda do item para duas ou mais pessoas.
+				query_sql("SELECT `id`,`item_id` FROM `sistema_pix_npc` WHERE `id` = "+.@q[6]+"",@idconf,@itemid);
+				if(@idconf != .@q[6] || @itemid != .@q[0])
+				{
+					mes .npc$;
+					mes "O item já foi vendido, outra pessoa comprou ele antes de você.";
+					next;
+					callfunc "rmtshop";
+				}
+				
 				set @saldoupdatecmp,(@saldormtcomp-.@q[4]);
 				set @saldoupdatevnd,(@saldormtvend+.@q[4]);
 				query_sql("UPDATE `sistema_pix` SET `saldo` = '"+@saldoupdatecmp+"' WHERE `sistema_pix`.`account_id` = '"+getcharid(3)+"'");
@@ -938,7 +1030,8 @@ OnBuyItem:
 				break;
 				
 			case 3:
-				close;
+				next;
+				callfunc "rmtshop";
 		}
     }
 end;

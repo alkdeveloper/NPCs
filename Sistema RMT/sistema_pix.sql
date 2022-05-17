@@ -35,7 +35,8 @@ CREATE TABLE `sistema_pix` (
   `dia` int(11) UNSIGNED NOT NULL DEFAULT '0',
   `mes` int(11) UNSIGNED NOT NULL DEFAULT '0',
   `ano` int(11) UNSIGNED NOT NULL DEFAULT '0',
-  `telefone` int(10) UNSIGNED NOT NULL DEFAULT '0',
+  `ddd` int(4) UNSIGNED NOT NULL DEFAULT '0',
+  `telefone` int(9) UNSIGNED NOT NULL DEFAULT '0',
   `chave_pix` varchar(30) CHARACTER SET latin1 NOT NULL,
   `senha` int(11) UNSIGNED NOT NULL DEFAULT '0',
   `saldo` int(11) UNSIGNED NOT NULL DEFAULT '0'
