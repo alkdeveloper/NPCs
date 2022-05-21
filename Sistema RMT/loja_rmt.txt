@@ -834,6 +834,9 @@ OnInit:
 	
 	set .npc$,"[Sistema RMT]"; //Nome do NPC
 	
+	//Tarifas de compra
+	set .tcompra,15;
+	
 	set .Announce,1;        //Mandar mensagem global ao terminar uma quest? (1: sim / 0: não)
 	set .ShowSlotrmt,1;     //Mostrar Slotrmts dos Itens?                   (2: todo equipamento / 1: somente aqueles que possuem Slotrmt maior que 0 / 0: nunca)
 	set .ShowID,1;          //Mostrar ID dos Itens?                         (1: sim / 0: não)
@@ -950,11 +953,13 @@ OnBuyItem:
 	}
 	query_sql("SELECT `char_nome` FROM `sistema_pix_npc` WHERE `id` = "+.@q[6]+"",@charnome$);
 	query_sql("SELECT `senha`,`saldo` FROM `sistema_pix` WHERE `account_id`='"+getcharid(3)+"'",@senharmt,@saldormtcomp);
+	set @tarifavalor,.@q[4]*.tcompra/100;
 	mes .npc$;
     mes "Item: [^0055FF"+((.@q[2] > 1)?.@q[2]+"x ":"")+Slotrmt(.@q[0])+"^000000]";
 	mes "ID: [^0055FF"+.@q[6]+"^000000]";
 	mes "Pertence: [^0055FF"+@charnome$+"^000000]";
 	mes(sprintf("Valor RMT: [^03B619%d,%d^000000]", (.@q[4]/100),(.@q[4]%100)));
+	mes(sprintf("Valor da Tarifa: [^0055FF%d,%d^000000]", (@tarifavalor/100), (@tarifavalor%100)));
 	mes(sprintf("Seu Saldo RMT: [^E8183A%d,%d^000000]", (@saldormtcomp/100),(@saldormtcomp%100)));
 	next;
     setarray @qe[1], getiteminfo(.@q[0],5), getiteminfo(.@q[0],11);
@@ -980,6 +985,7 @@ OnBuyItem:
 				}
 				query_sql("SELECT `saldo` FROM `sistema_pix` WHERE `account_id`='"+getcharid(3)+"'",@saldormtcomp);
 				query_sql("SELECT `saldo` FROM `sistema_pix` WHERE `account_id`='"+.@q[7]+"'",@saldormtvend);
+				set @saldototal,@tarifavalor+.@q[4];
 				if (getcharid(3) == .@q[7])
 				{
 					mes .npc$;
@@ -987,7 +993,7 @@ OnBuyItem:
 					next;
 					callfunc "rmtshop";
 				}
-				if (.@q[4] > @saldormtcomp) { 
+				if (@saldototal > @saldormtcomp) { 
 					mes .npc$;
 					mes "Sinto muito, mas você não possui moedas RMT suficiente para comprar o item.";
 					next;
@@ -1010,8 +1016,8 @@ OnBuyItem:
 					callfunc "rmtshop";
 				}
 				
-				set @saldoupdatecmp,(@saldormtcomp-.@q[4]);
-				set @saldoupdatevnd,(@saldormtvend+.@q[4]);
+				set @saldoupdatecmp,@saldormtcomp-@saldototal;
+				set @saldoupdatevnd,@saldormtvend+.@q[4];
 				query_sql("UPDATE `sistema_pix` SET `saldo` = '"+@saldoupdatecmp+"' WHERE `sistema_pix`.`account_id` = '"+getcharid(3)+"'");
 				query_sql("UPDATE `sistema_pix` SET `saldo` = '"+@saldoupdatevnd+"' WHERE `sistema_pix`.`account_id` = '"+.@q[7]+"'");
 				query_sql("DELETE FROM `sistema_pix_npc` WHERE `sistema_pix_npc`.`id` = '"+.@q[6]+"'");
