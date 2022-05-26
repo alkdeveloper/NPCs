@@ -8,6 +8,7 @@
 
 #include "../common/nullpo.hpp"
 #include "../common/socket.hpp"
+#include "../common/utils.hpp"
 
 #include "atcommand.hpp"
 #include "battle.hpp"
@@ -37,8 +38,18 @@ void trade_traderequest(struct map_session_data *sd, struct map_session_data *ta
 		return; //Can't trade in notrade mapflag maps.
 	}
 
+	if( sd->state.protection_acc ) {
+		clif_displaymessage(sd->fd, msg_txt(sd,4000));
+		return;
+	}
+
 	if (target_sd == NULL || sd == target_sd) {
 		clif_tradestart(sd, 1); // character does not exist
+		return;
+	}
+
+	if( target_sd->state.protection_acc ) {
+		clif_displaymessage(sd->fd, msg_txt(sd,4000));
 		return;
 	}
 
@@ -207,7 +218,7 @@ int impossible_trade_check(struct map_session_data *sd)
 		if (inventory[index].amount < sd->deal.item[i].amount) { // if more than the player have -> hack
 			sprintf(message_to_gm, msg_txt(sd,538), sd->status.name, sd->status.account_id); // Hack on trade: character '%s' (account: %d) try to trade more items that he has.
 			intif_wis_message_to_gm(wisp_server_name, PC_PERM_RECEIVE_HACK_INFO, message_to_gm);
-			sprintf(message_to_gm, msg_txt(sd,539), inventory[index].amount, inventory[index].nameid, sd->deal.item[i].amount); // This player has %d of a kind of item (id: %u), and try to trade %d of them.
+			sprintf(message_to_gm, msg_txt(sd,539), inventory[index].amount, inventory[index].nameid, sd->deal.item[i].amount); // This player has %d of a kind of item (id: %d), and try to trade %d of them.
 			intif_wis_message_to_gm(wisp_server_name, PC_PERM_RECEIVE_HACK_INFO, message_to_gm);
 			// if we block people
 			if (battle_config.ban_hack_trade < 0) {
@@ -392,6 +403,36 @@ void trade_tradeadditem(struct map_session_data *sd, short index, short amount)
 		clif_displaymessage (sd->fd, msg_txt(sd,260));
 		clif_tradeitemok(sd, index+2, 1);
 		return;
+	}
+
+	// [CreativeSD]: Stuff Items
+	if( battle_config.stuff_enable ) {
+		// BG Stuff
+		if( item->card[0]==CARD0_CREATE && MakeDWord(item->card[2],item->card[3])==battle_config.stuff_bg_reserved_id && 
+			pc_get_partner(sd) != target_sd && !battle_config.stuff_enable_trade&0x01 )
+		{
+			clif_displaymessage(sd->fd, msg_txt(sd,260));
+			clif_tradeitemok(sd, index+2, 1);
+			return;
+		}
+
+		// GvG Stuff
+		if( item->card[0]==CARD0_CREATE && MakeDWord(item->card[2],item->card[3])==battle_config.stuff_gvg_reserved_id && 
+			pc_get_partner(sd) != target_sd && !(battle_config.stuff_enable_trade&0x02) )
+		{	// "GvG's Items"
+			clif_displaymessage(sd->fd, msg_txt(sd,260));
+			clif_tradeitemok(sd, index+2, 1);
+			return;
+		}
+
+		// PvP Stuff
+		if( item->card[0]==CARD0_CREATE && MakeDWord(item->card[2],item->card[3])==battle_config.stuff_pvp_reserved_id && 
+			pc_get_partner(sd) != target_sd && !(battle_config.stuff_enable_trade&0x04) )
+		{	// "GvG's Items"
+			clif_displaymessage(sd->fd, msg_txt(sd,260));
+			clif_tradeitemok(sd, index+2, 1);
+			return;
+		}
 	}
 
 	if( ((item->bound == BOUND_ACCOUNT || item->bound > BOUND_GUILD) || (item->bound == BOUND_GUILD && sd->status.guild_id != target_sd->status.guild_id)) && !pc_can_give_bounded_items(sd) ) { // Item Bound

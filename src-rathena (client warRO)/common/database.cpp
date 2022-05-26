@@ -7,9 +7,7 @@
 
 bool YamlDatabase::nodeExists( const YAML::Node& node, const std::string& name ){
 	try{
-		const YAML::Node &subNode = node[name];
-
-		if( subNode.IsDefined() && !subNode.IsNull() ){
+		if( node[name] ){
 			return true;
 		}else{
 			return false;
@@ -73,8 +71,7 @@ bool YamlDatabase::verifyCompatibility( const YAML::Node& rootNode ){
 			ShowError( "Database version %hu is not supported. Maximum version is: %hu\n", tmpVersion, this->version );
 			return false;
 		}else if( tmpVersion >= this->minimumVersion ){
-			ShowWarning( "Database version %hu is outdated and should be updated. Current version is: %hu\n", tmpVersion, this->version );
-			ShowWarning( "Reduced compatibility with %s database file from '" CL_WHITE "%s" CL_RESET "'.\n", this->type.c_str(), this->currentFile.c_str() );
+			ShowWarning( "Database version %hu is outdated and should be updated. Current version is: %hu\n", tmpVersion, this->minimumVersion );
 		}else{
 			ShowError( "Database version %hu is not supported anymore. Minimum version is: %hu\n", tmpVersion, this->minimumVersion );
 			return false;
@@ -85,11 +82,7 @@ bool YamlDatabase::verifyCompatibility( const YAML::Node& rootNode ){
 }
 
 bool YamlDatabase::load(){
-	bool ret = this->load( this->getDefaultLocation() );
-
-	this->loadingFinished();
-
-	return ret;
+	return this->load( this->getDefaultLocation() );
 }
 
 bool YamlDatabase::reload(){
@@ -102,7 +95,6 @@ bool YamlDatabase::load(const std::string& path) {
 	YAML::Node rootNode;
 
 	try {
-		ShowStatus( "Loading '" CL_WHITE "%s" CL_RESET "'..." CL_CLL "\r", path.c_str() );
 		rootNode = YAML::LoadFile(path);
 	}
 	catch(YAML::Exception &e) {
@@ -136,26 +128,15 @@ bool YamlDatabase::load(const std::string& path) {
 	return true;
 }
 
-void YamlDatabase::loadingFinished(){
-	// Does nothing by default, just for hooking
-}
-
 void YamlDatabase::parse( const YAML::Node& rootNode ){
 	uint64 count = 0;
 
 	if( this->nodeExists( rootNode, "Body" ) ){
-		const YAML::Node& bodyNode = rootNode["Body"];
-		size_t childNodesCount = bodyNode.size();
-		size_t childNodesProgressed = 0;
-		const char* fileName = this->currentFile.c_str();
-
-		for( const YAML::Node &node : bodyNode ){
+		for( const YAML::Node &node : rootNode["Body"] ){
 			count += this->parseBodyNode( node );
-
-			ShowStatus( "Loading [%" PRIdPTR "/%" PRIdPTR "] entries from '" CL_WHITE "%s" CL_RESET "'" CL_CLL "\r", ++childNodesProgressed, childNodesCount, fileName );
 		}
 
-		ShowStatus( "Done reading '" CL_WHITE "%" PRIu64 CL_RESET "' entries in '" CL_WHITE "%s" CL_RESET "'" CL_CLL "\n", count, fileName );
+		ShowStatus("Done reading '" CL_WHITE "%" PRIu64 CL_RESET "' entries in '" CL_WHITE "%s" CL_RESET "'\n", count, this->currentFile.c_str());
 	}
 }
 
@@ -256,50 +237,11 @@ bool YamlDatabase::asString(const YAML::Node &node, const std::string &name, std
 	return asType<std::string>(node, name, out);
 }
 
-bool YamlDatabase::asUInt16Rate( const YAML::Node& node, const std::string& name, uint16& out, uint16 maximum ){
-	if( this->asUInt16( node, name, out ) ){
-		if( out > maximum ){
-			this->invalidWarning( node[name], "Node \"%s\" with value %" PRIu16 " exceeds maximum of %" PRIu16 ".\n", name.c_str(), out, maximum );
-
-			return false;
-		}else if( out == 0 ){
-			this->invalidWarning( node[name], "Node \"%s\" needs to be at least 1.\n", name.c_str() );
-
-			return false;
-		}else{
-			return true;
-		}
-	}else{
-		return false;
-	}
-}
-
-bool YamlDatabase::asUInt32Rate( const YAML::Node& node, const std::string& name, uint32& out, uint32 maximum ){
-	if( this->asUInt32( node, name, out ) ){
-		if( out > maximum ){
-			this->invalidWarning( node[name], "Node \"%s\" with value %" PRIu32 " exceeds maximum of %" PRIu32 ".\n", name.c_str(), out, maximum );
-
-			return false;
-		}else if( out == 0 ){
-			this->invalidWarning( node[name], "Node \"%s\" needs to be at least 1.\n", name.c_str() );
-
-			return false;
-		}else{
-			return true;
-		}
-	}else{
-		return false;
-	}
-}
-
 void YamlDatabase::invalidWarning( const YAML::Node &node, const char* fmt, ... ){
 	va_list ap;
 
 	va_start(ap, fmt);
 
-	// Remove any remaining garbage of a previous loading line
-	ShowMessage( CL_CLL );
-	// Print the actual error
 	_vShowMessage( MSG_ERROR, fmt, ap );
 
 	va_end(ap);

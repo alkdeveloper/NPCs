@@ -6,7 +6,6 @@
 
 #include <algorithm>
 #include <stdarg.h>
-#include <string>
 #include <unordered_map>
 #include <vector>
 
@@ -47,12 +46,12 @@ void map_msg_reload(void);
 #define LOOTITEM_SIZE 10
 #define MAX_MOBSKILL 50		//Max 128, see mob skill_idx type if need this higher
 #define MAX_MOB_LIST_PER_MAP 128
-#define MAX_EVENTQUEUE 2
+#define MAX_EVENTQUEUE 200
 #define MAX_EVENTTIMER 32
 #define NATURAL_HEAL_INTERVAL 500
 #define MIN_FLOORITEM 2
 #define MAX_FLOORITEM START_ACCOUNT_NUM
-#define MAX_LEVEL 200
+#define MAX_LEVEL 300
 #define MAX_DROP_PER_MAP 48
 #define MAX_IGNORE_LIST 20 	// official is 14
 #define MAX_VENDING 12
@@ -69,7 +68,6 @@ void map_msg_reload(void);
 #define JOBL_UPPER 0x1000 //4096
 #define JOBL_BABY 0x2000  //8192
 #define JOBL_THIRD 0x4000 //16384
-#define JOBL_FOURTH 0x8000 //32768
 
 //for filtering and quick checking.
 #define MAPID_BASEMASK 0x00ff
@@ -79,7 +77,7 @@ void map_msg_reload(void);
 //First Jobs
 //Note the oddity of the novice:
 //Super Novices are considered the 2-1 version of the novice! Novices are considered a first class type, too...
-enum e_mapid : uint64{
+enum e_mapid {
 //Novice And 1-1 Jobs
 	MAPID_NOVICE = 0x0,
 	MAPID_SWORDMAN,
@@ -206,47 +204,25 @@ enum e_mapid : uint64{
 	MAPID_SHADOW_CHASER_T,
 //Baby 3-1 Jobs
 	MAPID_SUPER_BABY_E = JOBL_THIRD|MAPID_SUPER_BABY,
-	MAPID_BABY_RUNE_KNIGHT,
+	MAPID_BABY_RUNE,
 	MAPID_BABY_WARLOCK,
 	MAPID_BABY_RANGER,
-	MAPID_BABY_ARCH_BISHOP,
+	MAPID_BABY_BISHOP,
 	MAPID_BABY_MECHANIC,
-	MAPID_BABY_GUILLOTINE_CROSS,
+	MAPID_BABY_CROSS,
 	MAPID_BABY_STAR_EMPEROR,
 //Baby 3-2 Jobs
-	MAPID_BABY_ROYAL_GUARD = JOBL_THIRD|MAPID_BABY_CRUSADER,
+	MAPID_BABY_GUARD = JOBL_THIRD|MAPID_BABY_CRUSADER,
 	MAPID_BABY_SORCERER,
 	MAPID_BABY_MINSTRELWANDERER,
 	MAPID_BABY_SURA,
 	MAPID_BABY_GENETIC,
-	MAPID_BABY_SHADOW_CHASER,
+	MAPID_BABY_CHASER,
 	MAPID_BABY_SOUL_REAPER,
-//4-1 Jobs
-	MAPID_DRAGON_KNIGHT = JOBL_FOURTH|JOBL_THIRD|JOBL_UPPER|MAPID_KNIGHT,
-	MAPID_ARCH_MAGE,
-	MAPID_WINDHAWK,
-	MAPID_CARDINAL,
-	MAPID_MEISTER,
-	MAPID_SHADOW_CROSS,
-//4-2 Jobs
-	MAPID_IMPERIAL_GUARD = JOBL_FOURTH|JOBL_THIRD|JOBL_UPPER|MAPID_CRUSADER,
-	MAPID_ELEMENTAL_MASTER,
-	MAPID_TROUBADOURTROUVERE,
-	MAPID_INQUISITOR,
-	MAPID_BIOLO,
-	MAPID_ABYSS_CHASER,
-// Additional constants
-	MAPID_ALL = UINT64_MAX
 };
 
 //Max size for inputs to Graffiti, Talkie Box and Vending text prompts
 #define MESSAGE_SIZE (79 + 1)
-// Max size for inputs to Graffiti, Talkie Box text prompts
-#if PACKETVER_MAIN_NUM >= 20190904 || PACKETVER_RE_NUM >= 20190904 || PACKETVER_ZERO_NUM >= 20190828
-#define TALKBOX_MESSAGE_SIZE 21
-#else
-#define TALKBOX_MESSAGE_SIZE (79 + 1)
-#endif
 //String length you can write in the 'talking box'
 #define CHATBOX_SIZE (70 + 1)
 //Chatroom-related string sizes
@@ -302,10 +278,19 @@ enum e_race : int8{
 	RC_DEMIHUMAN,
 	RC_ANGEL,
 	RC_DRAGON,
-	RC_PLAYER_HUMAN,
-	RC_PLAYER_DORAM,
+	RC_PLAYER,
 	RC_ALL,
 	RC_MAX //auto upd enum for array size
+};
+
+enum e_classAE : int8{
+	CLASS_NONE = -1, //don't give us bonus
+	CLASS_NORMAL = 0,
+	CLASS_BOSS,
+	CLASS_GUARDIAN,
+	CLASS_BATTLEFIELD,
+	CLASS_ALL,
+	CLASS_MAX //auto upd enum for array len
 };
 
 enum e_race2 : uint8{
@@ -314,10 +299,10 @@ enum e_race2 : uint8{
 	RC2_KOBOLD,
 	RC2_ORC,
 	RC2_GOLEM,
-	RC2_GUARDIAN, // Deprecated to CLASS_GUARDIAN
+	RC2_GUARDIAN,
 	RC2_NINJA,
 	RC2_GVG,
-	RC2_BATTLEFIELD, // Deprecated to CLASS_BATTLEFIELD
+	RC2_BATTLEFIELD,
 	RC2_TREASURE,
 	RC2_BIOLAB,
 	RC2_MANUK,
@@ -335,8 +320,6 @@ enum e_race2 : uint8{
 	RC2_HEARTHUNTER,
 	RC2_ROCKRIDGE,
 	RC2_WERNER_LAB,
-	RC2_TEMPLE_DEMON,
-	RC2_ILLUSION_VAMPIRE,
 	RC2_MAX
 };
 
@@ -354,23 +337,7 @@ enum e_element : int8{
 	ELE_GHOST,
 	ELE_UNDEAD,
 	ELE_ALL,
-	ELE_MAX,
-	ELE_WEAPON,
-	ELE_ENDOWED,
-	ELE_RANDOM,
-};
-
-static std::unordered_map<std::string, e_element> um_eleid2elename {
-	{ "Neutral", ELE_NEUTRAL },
-	{ "Water", ELE_WATER },
-	{ "Earth", ELE_EARTH },
-	{ "Fire", ELE_FIRE },
-	{ "Wind", ELE_WIND },
-	{ "Poison", ELE_POISON },
-	{ "Holy", ELE_HOLY },
-	{ "Dark", ELE_DARK },
-	{ "Ghost", ELE_GHOST },
-	{ "Undead", ELE_UNDEAD },
+	ELE_MAX
 };
 
 #define MAX_ELE_LEVEL 4 /// Maximum Element level
@@ -395,8 +362,6 @@ enum mob_ai {
 	AI_ZANZOU,
 	AI_LEGION,
 	AI_FAW,
-	AI_GUILD,
-	AI_WAVEMODE,
 	AI_MAX
 };
 
@@ -435,6 +400,7 @@ struct spawn_data {
 		unsigned int boss : 1; //0: Non-boss monster | 1: Boss monster
 	} state;
 	char name[NAME_LENGTH], eventname[EVENT_NAME_LENGTH]; //Name/event
+	char desc[NAME_LENGTH]; // [CreativeSD]: Battleground Warfare
 };
 
 struct flooritem_data {
@@ -477,12 +443,6 @@ enum _sp {
 
 	// Mercenaries
 	SP_MERCFLEE=165, SP_MERCKILLS=189, SP_MERCFAITH=190,
-
-	// 4th jobs
-	SP_POW=219, SP_STA, SP_WIS, SP_SPL, SP_CON, SP_CRT,	// 219-224
-	SP_PATK, SP_SMATK, SP_RES, SP_MRES, SP_HPLUS, SP_CRATE,	// 225-230
-	SP_TRAITPOINT, SP_AP, SP_MAXAP,	// 231-233
-	SP_UPOW=247, SP_USTA, SP_UWIS, SP_USPL, SP_UCON, SP_UCRT,	// 247-252
 
 	// original 1000-
 	SP_ATTACKRANGE=1000,	SP_ATKELE,SP_DEFELE,	// 1000-1002
@@ -535,9 +495,8 @@ enum _sp {
 	SP_HP_VANISH_RACE_RATE, SP_SP_VANISH_RACE_RATE, SP_ABSORB_DMG_MAXHP, SP_SUB_SKILL, SP_SUBDEF_ELE, // 2074-2078
 	SP_STATE_NORECOVER_RACE, SP_CRITICAL_RANGEATK, SP_MAGIC_ADDRACE2, SP_IGNORE_MDEF_RACE2_RATE, // 2079-2082
 	SP_WEAPON_ATK_RATE, SP_WEAPON_MATK_RATE, SP_DROP_ADDRACE, SP_DROP_ADDCLASS, SP_NO_MADO_FUEL, // 2083-2087
-	SP_IGNORE_DEF_CLASS_RATE, SP_REGEN_PERCENT_HP, SP_REGEN_PERCENT_SP, SP_SKILL_DELAY, SP_NO_WALK_DELAY, //2088-2092
-	SP_LONG_SP_GAIN_VALUE, SP_LONG_HP_GAIN_VALUE, SP_SHORT_ATK_RATE, SP_MAGIC_SUBSIZE, SP_CRIT_DEF_RATE, // 2093-2097
-	SP_MAGIC_SUBDEF_ELE, SP_REDUCE_DAMAGE_RETURN, SP_ADD_ITEM_SPHEAL_RATE, SP_ADD_ITEMGROUP_SPHEAL_RATE, // 2098-2101
+	SP_IGNORE_DEF_CLASS_RATE, SP_REGEN_PERCENT_HP, SP_REGEN_PERCENT_SP, SP_SKILL_DELAY, SP_NO_WALK_DELAY, //2088-2093
+	SP_LONG_SP_GAIN_VALUE, SP_LONG_HP_GAIN_VALUE, SP_DISPELL_RESIST // 2095-2095
 };
 
 enum _look {
@@ -631,8 +590,14 @@ enum e_mapflag : int16 {
 	MF_PRIVATEAIRSHIP_SOURCE,
 	MF_PRIVATEAIRSHIP_DESTINATION,
 	MF_SKILL_DURATION,
-	MF_NOCASHSHOP,
-	MF_NORODEX,
+	MF_RESTOCK_ON,
+	MF_RESTOCK_OFF,
+	MF_NOBGSKILLCALL,
+	MF_NOBGRESPAWN,
+	// [CreativeSD]: Stuff Items
+	MF_BG_CONSUME,
+	MF_GVG_CONSUME,
+	MF_PVP_CONSUME,
 	MF_MAX
 };
 
@@ -696,6 +661,7 @@ enum cell_t{
 	CELL_MAELSTROM,
 	CELL_ICEWALL,
 
+	CELL_NOBATTLEGROUND,	// [CreativeSD] No Battleground Warfare vs in cell.
 };
 
 // used by map_getcell()
@@ -720,6 +686,7 @@ enum cell_chk : uint8 {
 	CELL_CHKMAELSTROM,		// Whether the cell has Maelstrom
 	CELL_CHKICEWALL,		// Whether the cell has Ice Wall
 
+	CELL_CHKNOBATTLEGROUND,	// [CreativeSD] No Battleground Warfare vs in cell.
 };
 
 struct mapcell
@@ -743,6 +710,8 @@ struct mapcell
 #ifdef CELL_NOSTACK
 	unsigned char cell_bl; //Holds amount of bls in this cell.
 #endif
+
+	unsigned char nobattleground : 1; // [CreativeSD] No Battleground Warfare vs in cell.
 };
 
 struct iwall_data {
@@ -750,6 +719,13 @@ struct iwall_data {
 	short m, x, y, size;
 	int8 dir;
 	bool shootable;
+};
+
+struct s_questinfo {
+	struct npc_data *nd;
+	e_questinfo_types icon;
+	e_questinfo_markcolor color;
+	struct script_code* condition;
 };
 
 struct map_data {
@@ -762,6 +738,7 @@ struct map_data {
 	int16 xs,ys; // map dimensions (in cells)
 	int16 bxs,bys; // map dimensions (in blocks)
 	int16 bgscore_lion, bgscore_eagle; // Battleground ScoreBoard
+	int16 bg_flags_touch; // Battleground Warfare Touch Area [CreativeSD]
 	int npc_num; // number total of npc on the map
 	int npc_num_area; // number of npc with a trigger area on the map
 	int npc_num_warp; // number of warp npc on the map
@@ -782,14 +759,14 @@ struct map_data {
 	int mob_delete_timer;	// Timer ID for map_removemobs_timer [Skotlex]
 
 	// Instance Variables
-	int instance_id;
+	unsigned short instance_id;
 	int instance_src_map;
 
 	/* rAthena Local Chat */
 	struct Channel *channel;
 
 	/* ShowEvent Data Cache */
-	std::vector<int> qi_npc;
+	std::vector<s_questinfo> qi_data;
 
 	/* speeds up clif_updatestatus processing by causing hpmeter to run only when someone with the permission can view it */
 	unsigned short hpmeter_visible;
@@ -818,8 +795,6 @@ extern int minsave_interval;
 extern int16 save_settings;
 extern int night_flag; // 0=day, 1=night [Yor]
 extern int enable_spy; //Determines if @spy commands are active.
-
-extern uint32 start_status_points;
 
 // Agit Flags
 extern bool agit_flag;
@@ -999,6 +974,8 @@ inline bool map_flag_gvg2_no_te(int16 m) {
 }
 
 extern char motd_txt[];
+extern char help_txt[];
+extern char help2_txt[];
 extern char charhelp_txt[];
 extern char channel_conf[];
 
@@ -1071,7 +1048,7 @@ void map_clearflooritem(struct block_list* bl);
 int map_addflooritem(struct item *item, int amount, int16 m, int16 x, int16 y, int first_charid, int second_charid, int third_charid, int flags, unsigned short mob_id, bool canShowEffect = false);
 
 // instances
-int map_addinstancemap(int src_m, int instance_id);
+int map_addinstancemap(const char *name, unsigned short instance_id);
 int map_delinstancemap(int m);
 void map_data_copyall(void);
 void map_data_copy(struct map_data *dst_map, struct map_data *src_map);
@@ -1159,7 +1136,7 @@ void map_removemobs(int16 m); // [Wizputer]
 void map_addmap2db(struct map_data *m);
 void map_removemapdb(struct map_data *m);
 
-void map_skill_damage_add(struct map_data *m, uint16 skill_id, union u_mapflag_args *args);
+void map_skill_damage_add(struct map_data *m, uint16 skill_id, int rate[SKILLDMG_MAX], uint16 caster);
 void map_skill_duration_add(struct map_data *mapd, uint16 skill_id, uint16 per);
 
 enum e_mapflag map_getmapflag_by_name(char* name);

@@ -3,7 +3,6 @@
 
 #include "utils.hpp"
 
-#include <locale.h>
 #include <math.h> // floor()
 #include <stdlib.h>
 #include <string.h>
@@ -366,7 +365,7 @@ unsigned int get_percentage(const unsigned int A, const unsigned int B)
 
 	if( B == 0 )
 	{
-		ShowError("get_percentage: divison by zero! (A=%u,B=%u)\n", A, B);
+		ShowError("get_percentage(): divison by zero! (A=%u,B=%u)\n", A, B);
 		return ~0U;
 	}
 
@@ -374,60 +373,9 @@ unsigned int get_percentage(const unsigned int A, const unsigned int B)
 
 	if( result > UINT_MAX )
 	{
-		ShowError("get_percentage: result percentage too high! (A=%u,B=%u,result=%g)\n", A, B, result);
+		ShowError("get_percentage(): result percentage too high! (A=%u,B=%u,result=%g)\n", A, B, result);
 		return UINT_MAX;
 	}
 
 	return (unsigned int)floor(result);
-}
-
-uint32 get_percentage_exp(const uint64 a, const uint64 b)
-{
-	double result;
-
-	if (b == 0)
-	{
-		ShowError("get_percentage_exp: divison by zero! (a=%" PRIu64 ",b=%" PRIu64 ")\n", a, b);
-		return ~0U;
-	}
-
-	result = 100.0 * ((double)a / (double)b);
-
-	if (result > UINT32_MAX)
-	{
-		ShowError("get_percentage_exp: result percentage too high! (a=%" PRIu64 ",b=%" PRIu64 ",result=%g)\n", a, b, result);
-		return UINT32_MAX;
-	}
-
-	return (uint32)floor(result);
-}
-
-char *GetComma(unsigned long n)
-{
-	static int comma = '\0';
-	static char retbuf[30];
-	char *p = &retbuf[sizeof(retbuf)-1];
-	int i = 0;
-
-	if(comma == '\0') {
-		struct lconv *lcp = localeconv();
-		if(lcp != NULL) {
-			if(lcp->thousands_sep != NULL &&
-				*lcp->thousands_sep != '\0')
-				comma = *lcp->thousands_sep;
-			else	comma = ',';
-		}
-	}
-
-	*p = '\0';
-
-	do {
-		if(i%3 == 0 && i != 0)
-			*--p = comma;
-		*--p = '0' + n % 10;
-		n /= 10;
-		i++;
-	} while(n != 0);
-
-	return p;
 }

@@ -14,8 +14,6 @@
 #include "../common/sql.hpp"
 #include "../common/strlib.hpp"
 
-#include "login.hpp" // login_config
-
 /// global defines
 
 /// internal structure
@@ -44,6 +42,242 @@ typedef struct AccountDBIterator_SQL {
 	int last_account_id;
 } AccountDBIterator_SQL;
 
+// (^~_~^) Gepard Shield Start
+static AccountDB_SQL* db_sql;
+
+void account_gepard_init(AccountDB* self)
+{
+	db_sql = (AccountDB_SQL*)self;
+
+	if (SQL_SUCCESS != Sql_Query(db_sql->accounts,
+		"CREATE TABLE IF NOT EXISTS `gepard_report_log` ("
+		"`time` datetime NOT NULL,"
+		"`unique_id` int(11) unsigned NOT NULL DEFAULT '0',"
+		"`account_id` int(11) unsigned NOT NULL DEFAULT '0',"
+		"`char_id` int(11) unsigned NOT NULL DEFAULT '0',"
+		"`char_name` varchar(24) NOT NULL,"
+		"`report_str` varchar(100) NOT NULL"
+		") ENGINE=MyISAM DEFAULT CHARSET=latin1;"))
+	{
+		Sql_ShowDebug(db_sql->accounts);
+		exit(EXIT_FAILURE);
+	}
+
+	if (SQL_SUCCESS != Sql_Query(db_sql->accounts, 
+		"CREATE TABLE IF NOT EXISTS `gepard_block` ("
+		"`unique_id` int(11) unsigned NOT NULL DEFAULT '0',"
+		"`unban_time` datetime NOT NULL,"
+		"`reason` varchar(50) NOT NULL,"
+		"UNIQUE KEY `unique_id` (`unique_id`)"
+		") ENGINE=MyISAM DEFAULT CHARSET=latin1;"))
+	{
+		Sql_ShowDebug(db_sql->accounts);
+		exit(EXIT_FAILURE);
+	}
+
+	if (SQL_SUCCESS != Sql_Query(db_sql->accounts, 
+		"CREATE TABLE IF NOT EXISTS `gepard_block_log` ("
+		"`id` int(11) unsigned NOT NULL AUTO_INCREMENT,"
+		"`unique_id` int(11) unsigned NOT NULL DEFAULT '0',"
+		"`block_time` datetime NOT NULL,"
+		"`unban_time` datetime NOT NULL,"
+		"`violator_name` varchar(24) NOT NULL,"
+		"`violator_account_id` int(11) NOT NULL,"
+		"`initiator_name` varchar(24) NOT NULL,"
+		"`initiator_account_id` int(11) NOT NULL,"
+		"`reason` varchar(50) NOT NULL,"
+		"PRIMARY KEY (`id`)"
+		") ENGINE=MyISAM DEFAULT CHARSET=latin1 AUTO_INCREMENT=1;"))
+	{
+		Sql_ShowDebug(db_sql->accounts);
+		exit(EXIT_FAILURE);
+	}
+
+	if (SQL_SUCCESS != Sql_Query(db_sql->accounts, 
+		"CREATE TABLE IF NOT EXISTS `gepard_min_allowed_license_version` ("
+		"`version` int(11) unsigned NOT NULL DEFAULT '2018033001'"
+		") ENGINE=MyISAM DEFAULT CHARSET=latin1;"))
+	{
+		Sql_ShowDebug(db_sql->accounts);
+		exit(EXIT_FAILURE);
+	}
+
+	if (SQL_SUCCESS != Sql_Query(db_sql->accounts, "SELECT `version` FROM `gepard_min_allowed_license_version`"))
+	{
+		Sql_ShowDebug(db_sql->accounts);
+		exit(EXIT_FAILURE);
+	}
+
+	if (SQL_SUCCESS != Sql_NextRow(db_sql->accounts))
+	{
+		if (SQL_SUCCESS != Sql_Query(db_sql->accounts, "INSERT INTO `gepard_min_allowed_license_version` VALUES ('0')"))
+		{
+			Sql_ShowDebug(db_sql->accounts);
+			exit(EXIT_FAILURE);
+		}
+	}
+
+	if (SQL_SUCCESS != Sql_Query(db_sql->accounts, "SHOW COLUMNS FROM `login` LIKE 'last_unique_id'"))
+	{
+		Sql_ShowDebug(db_sql->accounts);
+		exit(EXIT_FAILURE);
+	}
+
+	if (Sql_NumRows(db_sql->accounts) == 0)
+	{
+		if (SQL_SUCCESS != Sql_Query(db_sql->accounts, "ALTER TABLE `login` ADD `last_unique_id` INT(11) UNSIGNED NOT NULL DEFAULT '0';"))
+		{
+			Sql_ShowDebug(db_sql->accounts);
+			exit(EXIT_FAILURE);
+		}
+	}
+
+	if (SQL_SUCCESS != Sql_Query(db_sql->accounts, "SHOW COLUMNS FROM `login` LIKE 'blocked_unique_id'"))
+	{
+		Sql_ShowDebug(db_sql->accounts);
+		exit(EXIT_FAILURE);
+	}
+
+	if (Sql_NumRows(db_sql->accounts) == 0)
+	{
+		if (SQL_SUCCESS != Sql_Query(db_sql->accounts, "ALTER TABLE `login` ADD `blocked_unique_id` INT(11) UNSIGNED NOT NULL DEFAULT '0';"))
+		{
+			Sql_ShowDebug(db_sql->accounts);
+			exit(EXIT_FAILURE);
+		}
+	}
+}
+
+int account_gepard_check_license_version(struct socket_data* s, int fd, int group_id)
+{
+	const char* message_info_sql_error = "Tell administrator about SQL problem.";
+
+	if (is_gepard_active == false)
+	{
+		return 0;
+	}
+
+	if (group_id == 99)
+	{
+		return 0;
+	}
+
+	if (SQL_SUCCESS != Sql_Query(db_sql->accounts, "SELECT `version` FROM `gepard_min_allowed_license_version`"))
+	{
+		Sql_ShowDebug(db_sql->accounts);
+
+		gepard_send_info(fd, GEPARD_INFO_MESSAGE, message_info_sql_error);
+	}
+	else if (SQL_SUCCESS != Sql_NextRow(db_sql->accounts))
+	{
+		if (SQL_SUCCESS != Sql_Query(db_sql->accounts, "INSERT INTO `gepard_min_allowed_license_version` VALUES ('0')"))
+		{
+			Sql_ShowDebug(db_sql->accounts);
+
+			gepard_send_info(fd, GEPARD_INFO_MESSAGE, message_info_sql_error);
+		}
+	}
+	else
+	{
+		char* data;
+		const char* message_info_outdated_license = "You are using outdated Gepard Shield.\n\nYou have to close the game and run updater.";
+
+		Sql_GetData(db_sql->accounts, 0, &data, NULL);
+
+		min_allowed_license_version = (unsigned int)strtoul(data, NULL, 10);
+
+		Sql_FreeResult(db_sql->accounts);
+
+		if (s->gepard_info.license_version >= min_allowed_license_version)
+		{
+			return 0;
+		}
+
+		gepard_send_info(fd, GEPARD_INFO_OLD_LICENSE_VERSION, message_info_outdated_license);
+	}
+
+	return 1;
+}
+
+void account_gepard_update_last_unique_id(int account_id, unsigned int unique_id)
+{
+	if (is_gepard_active == false)
+	{
+		return;
+	}
+
+	if (SQL_SUCCESS != Sql_Query(db_sql->accounts, "UPDATE `login` SET `last_unique_id`= '%u' WHERE `account_id` = '%d'", unique_id, account_id))
+	{
+		Sql_ShowDebug(db_sql->accounts);
+	}
+	else if (SQL_SUCCESS == Sql_NextRow(db_sql->accounts))
+	{
+		Sql_ShowDebug(db_sql->accounts);
+	}
+
+	Sql_FreeResult(db_sql->accounts);
+}
+
+bool account_gepard_check_unique_id(int fd, struct socket_data* s)
+{
+	unsigned int unique_id = s->gepard_info.unique_id;
+
+	if (SQL_SUCCESS != Sql_Query(db_sql->accounts, "SELECT `unban_time`, `reason` FROM `gepard_block` WHERE `unique_id` = '%u'", unique_id))
+	{
+		Sql_ShowDebug(db_sql->accounts);
+		gepard_send_info(fd, GEPARD_INFO_MESSAGE, "Tell administrator about SQL problem.");
+	}
+	else if (SQL_SUCCESS == Sql_NextRow(db_sql->accounts))
+	{
+		char* data;
+		struct tm unblock_tm;
+		time_t time_unban, time_server;
+		int year, month, day, hour, min, sec;
+		char reason_str[GEPARD_REASON_LENGTH];
+		char unban_time_str[GEPARD_TIME_STR_LENGTH];
+
+		memset((void*)&unblock_tm, 0, sizeof(unblock_tm));
+
+		Sql_GetData(db_sql->accounts,  0, &data, NULL);
+		safestrncpy(unban_time_str, data, sizeof(unban_time_str));
+
+		sscanf(unban_time_str, "%d-%d-%d %d:%d:%d", &year, &month, &day, &hour, &min, &sec);
+
+		unblock_tm.tm_year = year - 1900;
+		unblock_tm.tm_mon = month - 1;
+		unblock_tm.tm_mday = day;
+		unblock_tm.tm_hour = hour;
+		unblock_tm.tm_min = min;
+		unblock_tm.tm_sec = sec;
+
+		time_unban = mktime(&unblock_tm);
+		time(&time_server);
+
+		if (time_server <= time_unban)
+		{
+			char message_info[200];
+
+			Sql_GetData(db_sql->accounts,  1, &data, NULL);
+			safestrncpy(reason_str, data, sizeof(reason_str));
+
+			safesnprintf(message_info, sizeof(message_info), "Unique ID has been banned!\r\rDate of unban:  %s\r\rUnique id: %u\r\rReason: %s", unban_time_str, unique_id, reason_str);
+
+			s->gepard_info.is_init_ack_received = false;
+
+			gepard_send_info(fd, GEPARD_INFO_BANNED, message_info);
+		}
+		else if (SQL_ERROR == Sql_Query(db_sql->accounts, "DELETE FROM `gepard_block` WHERE `unique_id` = '%u'", unique_id))
+		{
+			Sql_ShowDebug(db_sql->accounts);
+		}
+	}
+
+	Sql_FreeResult(db_sql->accounts);
+
+	return false;
+}
+// (^~_~^) Gepard Shield End
+
 /// internal functions
 static bool account_db_sql_init(AccountDB* self);
 static void account_db_sql_destroy(AccountDB* self);
@@ -51,9 +285,6 @@ static bool account_db_sql_get_property(AccountDB* self, const char* key, char* 
 static bool account_db_sql_set_property(AccountDB* self, const char* option, const char* value);
 static bool account_db_sql_create(AccountDB* self, struct mmo_account* acc);
 static bool account_db_sql_remove(AccountDB* self, const uint32 account_id);
-static bool account_db_sql_enable_webtoken( AccountDB* self, const uint32 account_id );
-static bool account_db_sql_disable_webtoken( AccountDB* self, const uint32 account_id );
-static bool account_db_sql_remove_webtokens( AccountDB* self );
 static bool account_db_sql_save(AccountDB* self, const struct mmo_account* acc);
 static bool account_db_sql_load_num(AccountDB* self, struct mmo_account* acc, const uint32 account_id);
 static bool account_db_sql_load_str(AccountDB* self, struct mmo_account* acc, const char* userid);
@@ -76,9 +307,6 @@ AccountDB* account_db_sql(void) {
 	db->vtable.save         = &account_db_sql_save;
 	db->vtable.create       = &account_db_sql_create;
 	db->vtable.remove       = &account_db_sql_remove;
-	db->vtable.enable_webtoken = &account_db_sql_enable_webtoken;
-	db->vtable.disable_webtoken = &account_db_sql_disable_webtoken;
-	db->vtable.remove_webtokens = &account_db_sql_remove_webtokens;
 	db->vtable.load_num     = &account_db_sql_load_num;
 	db->vtable.load_str     = &account_db_sql_load_str;
 	db->vtable.iterator     = &account_db_sql_iterator;
@@ -89,7 +317,7 @@ AccountDB* account_db_sql(void) {
 	safestrncpy(db->db_hostname, "127.0.0.1", sizeof(db->db_hostname));
 	db->db_port = 3306;
 	safestrncpy(db->db_username, "ragnarok", sizeof(db->db_username));
-	safestrncpy(db->db_password, "", sizeof(db->db_password));
+	safestrncpy(db->db_password, "ragnarok", sizeof(db->db_password));
 	safestrncpy(db->db_database, "ragnarok", sizeof(db->db_database));
 	safestrncpy(db->codepage, "", sizeof(db->codepage));
 	// other settings
@@ -142,7 +370,14 @@ static bool account_db_sql_init(AccountDB* self) {
 	if( codepage[0] != '\0' && SQL_ERROR == Sql_SetEncoding(sql_handle, codepage) )
 		Sql_ShowDebug(sql_handle);
 
-	self->remove_webtokens( self );
+// (^~_~^) Gepard Shield Start
+
+	if (is_gepard_active == true)
+	{
+		account_gepard_init(self);
+	}
+
+// (^~_~^) Gepard Shield End
 
 	return true;
 }
@@ -153,10 +388,6 @@ static bool account_db_sql_init(AccountDB* self) {
  */
 static void account_db_sql_destroy(AccountDB* self){
 	AccountDB_SQL* db = (AccountDB_SQL*)self;
-
-	if( SQL_ERROR == Sql_Query( db->accounts, "UPDATE `%s` SET `web_auth_token` = NULL", db->account_db ) ){
-		Sql_ShowDebug( db->accounts );
-	}
 
 	Sql_Free(db->accounts);
 	db->accounts = NULL;
@@ -497,7 +728,7 @@ static bool account_db_sql_iter_next(AccountDBIterator* self, struct mmo_account
 }
 
 /**
- * Fetch a struct mmo_account from sql, excluding web_auth_token.
+ * Fetch a struct mmo_account from sql.
  * @param db: pointer to db
  * @param acc: pointer of mmo_account to fill
  * @param account_id: id of user account to take data from
@@ -547,7 +778,6 @@ static bool mmo_auth_fromsql(AccountDB_SQL* db, struct mmo_account* acc, uint32 
 	Sql_GetData(sql_handle, 17, &data, NULL); acc->old_group = atoi(data);
 #endif
 	Sql_FreeResult(sql_handle);
-	acc->web_auth_token[0] = '\0';
 
 	return true;
 }
@@ -644,69 +874,6 @@ static bool mmo_auth_tosql(AccountDB_SQL* db, const struct mmo_account* acc, boo
 		}
 	}
 
-	if( acc->sex != 'S' && login_config.use_web_auth_token ){
-		static bool initialized = false;
-		static const char* query;
-
-		// Pseudo Scope to break out
-		while( !initialized ){
-			if( SQL_SUCCESS == Sql_Query( sql_handle, "SELECT SHA2( 'test', 256 )" ) ){
-				query = "UPDATE `%s` SET `web_auth_token` = LEFT( SHA2( CONCAT( UUID(), RAND() ), 256 ), %d ), `web_auth_token_enabled` = '1' WHERE `account_id` = '%d'";
-				initialized = true;
-				break;
-			}
-
-			if( SQL_SUCCESS == Sql_Query( sql_handle, "SELECT MD5( 'test' )" ) ){
-				query = "UPDATE `%s` SET `web_auth_token` = LEFT( MD5( CONCAT( UUID(), RAND() ) ), %d ), `web_auth_token_enabled` = '1' WHERE `account_id` = '%d'";
-				initialized = true;
-				break;
-			}
-
-			ShowWarning( "Your MySQL does not support SHA2 and MD5 - no hashing will be used for login token creation.\n" );
-			ShowWarning( "If you are using an old version of MySQL consider upgrading to a newer release.\n" );
-			query = "UPDATE `%s` SET `web_auth_token` = LEFT( CONCAT( UUID(), RAND() ), %d ), `web_auth_token_enabled` = '1' WHERE `account_id` = '%d'";
-			initialized = true;
-			break;
-		}
-
-		const int MAX_RETRIES = 20;
-		int i = 0;
-		bool success = false;
-
-		// Retry it for a maximum number of retries
-		do{
-			if( SQL_SUCCESS == Sql_Query( sql_handle, query, db->account_db, WEB_AUTH_TOKEN_LENGTH - 1, acc->account_id ) ){
-				success = true;
-				break;
-			}
-		}while( i < MAX_RETRIES && Sql_GetError( sql_handle ) == 1062 );
-
-		if( !success ){
-			if( i == MAX_RETRIES ){
-				ShowError( "Failed to generate a unique web_auth_token with %d retries...\n", i );
-			}else{
-				Sql_ShowDebug( sql_handle );
-			}
-
-			break;
-		}
-
-		char* data;
-		size_t len;
-
-		if( SQL_SUCCESS != Sql_Query( sql_handle, "SELECT `web_auth_token` from `%s` WHERE `account_id` = '%d'", db->account_db, acc->account_id ) ||
-			SQL_SUCCESS != Sql_NextRow( sql_handle ) ||
-			SQL_SUCCESS != Sql_GetData( sql_handle, 0, &data, &len )
-			){
-			Sql_ShowDebug( sql_handle );
-			break;
-		}
-
-		safestrncpy( (char *)&acc->web_auth_token, data, sizeof( acc->web_auth_token ) );
-
-		Sql_FreeResult( sql_handle );
-	}
-
 	// if we got this far, everything was successful
 	result = true;
 
@@ -719,17 +886,17 @@ static bool mmo_auth_tosql(AccountDB_SQL* db, const struct mmo_account* acc, boo
 	return result;
 }
 
-void mmo_save_global_accreg(AccountDB* self, int fd, uint32 account_id, uint32 char_id) {
+void mmo_save_global_accreg(AccountDB* self, int fd, int account_id, int char_id) {
 	Sql* sql_handle = ((AccountDB_SQL*)self)->accounts;
 	AccountDB_SQL* db = (AccountDB_SQL*)self;
-	uint16 count = RFIFOW(fd, 12);
+	int count = RFIFOW(fd, 12);
 
 	if (count) {
 		int cursor = 14, i;
 		char key[32], sval[254], esc_key[32*2+1], esc_sval[254*2+1];
 
 		for (i = 0; i < count; i++) {
-			uint32 index;
+			unsigned int index;
 			safestrncpy(key, RFIFOCP(fd, cursor + 1), RFIFOB(fd, cursor));
 			Sql_EscapeString(sql_handle, esc_key, key);
 			cursor += RFIFOB(fd, cursor) + 1;
@@ -740,12 +907,12 @@ void mmo_save_global_accreg(AccountDB* self, int fd, uint32 account_id, uint32 c
 			switch (RFIFOB(fd, cursor++)) {
 				// int
 				case 0:
-					if( SQL_ERROR == Sql_Query(sql_handle, "REPLACE INTO `%s` (`account_id`,`key`,`index`,`value`) VALUES ('%" PRIu32 "','%s','%" PRIu32 "','%" PRId64 "')", db->global_acc_reg_num_table, account_id, esc_key, index, RFIFOQ(fd, cursor)) )
+					if( SQL_ERROR == Sql_Query(sql_handle, "REPLACE INTO `%s` (`account_id`,`key`,`index`,`value`) VALUES ('%d','%s','%u','%d')", db->global_acc_reg_num_table, account_id, esc_key, index, RFIFOL(fd, cursor)) )
 						Sql_ShowDebug(sql_handle);
-					cursor += 8;
+					cursor += 4;
 					break;
 				case 1:
-					if( SQL_ERROR == Sql_Query(sql_handle, "DELETE FROM `%s` WHERE `account_id` = '%" PRIu32 "' AND `key` = '%s' AND `index` = '%" PRIu32 "' LIMIT 1", db->global_acc_reg_num_table, account_id, esc_key, index) )
+					if( SQL_ERROR == Sql_Query(sql_handle, "DELETE FROM `%s` WHERE `account_id` = '%d' AND `key` = '%s' AND `index` = '%u' LIMIT 1", db->global_acc_reg_num_table, account_id, esc_key, index) )
 						Sql_ShowDebug(sql_handle);
 					break;
 				// str
@@ -753,11 +920,11 @@ void mmo_save_global_accreg(AccountDB* self, int fd, uint32 account_id, uint32 c
 					safestrncpy(sval, RFIFOCP(fd, cursor + 1), RFIFOB(fd, cursor));
 					cursor += RFIFOB(fd, cursor) + 1;
 					Sql_EscapeString(sql_handle, esc_sval, sval);
-					if( SQL_ERROR == Sql_Query(sql_handle, "REPLACE INTO `%s` (`account_id`,`key`,`index`,`value`) VALUES ('%" PRIu32 "','%s','%" PRIu32 "','%s')", db->global_acc_reg_str_table, account_id, esc_key, index, esc_sval) )
+					if( SQL_ERROR == Sql_Query(sql_handle, "REPLACE INTO `%s` (`account_id`,`key`,`index`,`value`) VALUES ('%d','%s','%u','%s')", db->global_acc_reg_str_table, account_id, esc_key, index, esc_sval) )
 						Sql_ShowDebug(sql_handle);
 					break;
 				case 3:
-					if( SQL_ERROR == Sql_Query(sql_handle, "DELETE FROM `%s` WHERE `account_id` = '%" PRIu32 "' AND `key` = '%s' AND `index` = '%" PRIu32 "' LIMIT 1", db->global_acc_reg_str_table, account_id, esc_key, index) )
+					if( SQL_ERROR == Sql_Query(sql_handle, "DELETE FROM `%s` WHERE `account_id` = '%d' AND `key` = '%s' AND `index` = '%u' LIMIT 1", db->global_acc_reg_str_table, account_id, esc_key, index) )
 						Sql_ShowDebug(sql_handle);
 					break;
 				default:
@@ -768,14 +935,14 @@ void mmo_save_global_accreg(AccountDB* self, int fd, uint32 account_id, uint32 c
 	}
 }
 
-void mmo_send_global_accreg(AccountDB* self, int fd, uint32 account_id, uint32 char_id) {
+void mmo_send_global_accreg(AccountDB* self, int fd, int account_id, int char_id) {
 	Sql* sql_handle = ((AccountDB_SQL*)self)->accounts;
 	AccountDB_SQL* db = (AccountDB_SQL*)self;
 	char* data;
 	int plen = 0;
 	size_t len;
 
-	if( SQL_ERROR == Sql_Query(sql_handle, "SELECT `key`, `index`, `value` FROM `%s` WHERE `account_id`='%" PRIu32 "'", db->global_acc_reg_str_table, account_id) )
+	if( SQL_ERROR == Sql_Query(sql_handle, "SELECT `key`, `index`, `value` FROM `%s` WHERE `account_id`='%d'", db->global_acc_reg_str_table, account_id) )
 		Sql_ShowDebug(sql_handle);
 
 	WFIFOHEAD(fd, 60000 + 300);
@@ -806,7 +973,7 @@ void mmo_send_global_accreg(AccountDB* self, int fd, uint32 account_id, uint32 c
 
 		Sql_GetData(sql_handle, 1, &data, NULL);
 
-		WFIFOL(fd, plen) = (uint32)atol(data);
+		WFIFOL(fd, plen) = (unsigned int)atol(data);
 		plen += 4;
 
 		Sql_GetData(sql_handle, 2, &data, NULL);
@@ -842,7 +1009,7 @@ void mmo_send_global_accreg(AccountDB* self, int fd, uint32 account_id, uint32 c
 
 	Sql_FreeResult(sql_handle);
 
-	if( SQL_ERROR == Sql_Query(sql_handle, "SELECT `key`, `index`, `value` FROM `%s` WHERE `account_id`='%" PRIu32 "'", db->global_acc_reg_num_table, account_id) )
+	if( SQL_ERROR == Sql_Query(sql_handle, "SELECT `key`, `index`, `value` FROM `%s` WHERE `account_id`='%d'", db->global_acc_reg_num_table, account_id) )
 		Sql_ShowDebug(sql_handle);
 
 	WFIFOHEAD(fd, 60000 + 300);
@@ -873,13 +1040,13 @@ void mmo_send_global_accreg(AccountDB* self, int fd, uint32 account_id, uint32 c
 
 		Sql_GetData(sql_handle, 1, &data, NULL);
 
-		WFIFOL(fd, plen) = (uint32)atol(data);
+		WFIFOL(fd, plen) = (unsigned int)atol(data);
 		plen += 4;
 
 		Sql_GetData(sql_handle, 2, &data, NULL);
 
-		WFIFOQ(fd, plen) = strtoll(data,NULL,10);
-		plen += 8;
+		WFIFOL(fd, plen) = atoi(data);
+		plen += 4;
 
 		WFIFOW(fd, 14) += 1;
 
@@ -906,37 +1073,4 @@ void mmo_send_global_accreg(AccountDB* self, int fd, uint32 account_id, uint32 c
 	WFIFOSET(fd, plen);
 
 	Sql_FreeResult(sql_handle);
-}
-
-bool account_db_sql_enable_webtoken( AccountDB* self, const uint32 account_id ){
-	AccountDB_SQL* db = (AccountDB_SQL*)self;
-
-	if( SQL_ERROR == Sql_Query( db->accounts, "UPDATE `%s` SET `web_auth_token_enabled` = '1' WHERE `account_id` = '%u'", db->account_db, account_id ) ){
-		Sql_ShowDebug( db->accounts );
-		return false;
-	}
-
-	return true;
-}
-
-bool account_db_sql_disable_webtoken( AccountDB* self, const uint32 account_id ){
-	AccountDB_SQL* db = (AccountDB_SQL*)self;
-
-	if( SQL_ERROR == Sql_Query( db->accounts, "UPDATE `%s` SET `web_auth_token_enabled` = '0' WHERE `account_id` = '%u'", db->account_db, account_id ) ){
-		Sql_ShowDebug( db->accounts );
-		return false;
-	}
-
-	return true;
-}
-
-bool account_db_sql_remove_webtokens( AccountDB* self ){
-	AccountDB_SQL* db = (AccountDB_SQL*)self;
-
-	if( SQL_ERROR == Sql_Query( db->accounts, "UPDATE `%s` SET `web_auth_token` = NULL, `web_auth_token_enabled` = '0'", db->account_db ) ){
-		Sql_ShowDebug( db->accounts );
-		return false;
-	}
-
-	return true;
 }

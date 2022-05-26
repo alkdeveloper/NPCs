@@ -5,7 +5,6 @@
 #define LOG_HPP
 
 #include "../common/cbasetypes.hpp"
-#include "../common/mmo.hpp"
 
 struct block_list;
 struct map_session_data;
@@ -78,11 +77,11 @@ void log_npc( struct npc_data* nd, const char* message );
 void log_npc(struct map_session_data* sd, const char *message);
 void log_chat(e_log_chat_type type, int type_id, int src_charid, int src_accid, const char* map, int x, int y, const char* dst_charname, const char* message);
 void log_atcommand(struct map_session_data* sd, const char* message);
-void log_feeding(struct map_session_data *sd, e_log_feeding_type type, t_itemid nameid);
+void log_feeding(struct map_session_data *sd, e_log_feeding_type type, unsigned short nameid);
 
 /// old, but useful logs
 void log_branch(struct map_session_data* sd);
-void log_mvpdrop(struct map_session_data* sd, int monster_id, t_itemid nameid, t_exp exp);
+void log_mvpdrop(struct map_session_data* sd, int monster_id, unsigned int* log_mvp);
 
 int log_config_read(const char* cfgName);
 

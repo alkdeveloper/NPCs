@@ -1,0 +1,26 @@
+// © Creative Services and Development
+// Site Oficial: www.creativesd.com.br
+// Termos de Contrato e Autoria em: http://creativesd.com.br/?p=termos
+
+	{ "bgw_enable",                          &battle_config.bgw_enable, 1, 0, 1, },
+	{ "bgw_msg_txt",                         &battle_config.bgw_msg_txt, 1650, 0, INT_MAX, },
+	{ "bgw_mode",                            &battle_config.bgw_mode, 1, 0, 1, },
+	{ "bgw_timer_attack",                    &battle_config.bgw_timer_attack, 1, 1, 1440, },
+	{ "bgw_group_filter",                    &battle_config.bgw_group_filter, 1, 0, 1, },
+	{ "bgw_dual_check",                      &battle_config.bgw_dual_check, 0x00, 0x00, 0x03, },
+	{ "bgw_player_announce",                 &battle_config.bgw_player_announce, 1, 0, 1, },
+	{ "bgw_idle_autokick",                   &battle_config.bgw_idle_autokick, 0, 0, INT_MAX, },
+	{ "bgw_afk_timer",                       &battle_config.bgw_afk_timer, 30, 30, 5000, },
+	{ "bgw_afk_team_report",                 &battle_config.bgw_afk_team_report, 1, 0, 1, },
+	{ "bgw_afk_warp_save_point",             &battle_config.bgw_afk_warp_save_point, 1, 0, 1, },
+	{ "bgw_ranking_rows",                    &battle_config.bgw_ranking_rows, 1, 1, 30, },
+	{ "bgw_enable_skills",                   &battle_config.bgw_enable_skills, 1, 0, 1, },
+	{ "bgw_name_position",                   &battle_config.bgw_name_position, 1, 0, 1, },
+	{ "bgw_enable_cross_swords",             &battle_config.bgw_enable_cross_swords, 0x00, 0x00, 0x03, },
+	{ "bgw_reward_ignore_rate",              &battle_config.bgw_ignore_rate, 1, 0, 1, },
+	{ "bgw_reward_rate",                     &battle_config.bgw_reward_rate, 1, 1, 10000, },
+	{ "bgw_reward_rate_min",                 &battle_config.bgw_reward_rate_min, 1, 1, 10000, },
+	{ "bgw_reward_rate_max",                 &battle_config.bgw_reward_rate_max, 1, 1, 10000, },
+	{ "bgw_reward_max_given",                &battle_config.bgw_reward_max_given, 0, 0, INT_MAX, },
+	{ "bgw_capture_flag_path",               &battle_config.bgw_capture_flag_path, 1, 1, 10, }, 
+	{ "bgw_castle_defense",                  &battle_config.bgw_castle_defense,    1, 1, 100, }, 

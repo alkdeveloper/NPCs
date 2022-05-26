@@ -17,6 +17,8 @@
 #include "../common/showmsg.hpp"
 #include "../common/utils.hpp"
 
+#define NO_WATER 1000000
+
 std::string grf_list_file = "conf/grf-files.txt";
 std::string map_list_file = "map_index.txt";
 std::string map_cache_file;
@@ -52,7 +54,7 @@ struct map_info {
 int read_map(char *name, struct map_data *m)
 {
 	char filename[256];
-	unsigned char *gat;
+	unsigned char *gat, *rsw;
 	int water_height;
 	size_t xy, off, num_cells;
 
@@ -64,9 +66,14 @@ int read_map(char *name, struct map_data *m)
 
 	// Open map RSW
 	sprintf(filename,"data\\%s.rsw", name);
+	rsw = (unsigned char *)grfio_read(filename);
 
 	// Read water height
-	water_height = grfio_read_rsw_water_level( filename );
+	if (rsw) {
+		water_height = (int)GetFloat(rsw+166);
+		aFree(rsw);
+	} else
+		water_height = NO_WATER;
 
 	// Read map size and allocate needed memory
 	m->xs = (int16)GetULong(gat+6);
@@ -88,7 +95,7 @@ int read_map(char *name, struct map_data *m)
 		uint32 type   = GetULong( gat + off + 16 );
 		off += 20;
 
-		if (type == 0 && water_height != RSW_NO_WATER && height > water_height)
+		if (type == 0 && water_height != NO_WATER && height > water_height)
 			type = 3; // Cell is 0 (walkable) but under water level, set to 3 (walkable water)
 
 		m->cells[xy] = (unsigned char)type;

@@ -33,12 +33,6 @@
 	#define MAX_HOTKEYS 38
 #endif
 
-#if PACKETVER_MAIN_NUM >= 20190522 || PACKETVER_RE_NUM >= 20190508 || PACKETVER_ZERO_NUM >= 20190605
-	#define MAX_HOTKEYS_DB ((MAX_HOTKEYS) * 2)
-#else
-	#define MAX_HOTKEYS_DB MAX_HOTKEYS
-#endif
-
 #define MAX_MAP_PER_SERVER 1500 /// Maximum amount of maps available on a server
 #define MAX_INVENTORY 100 ///Maximum items in player inventory
 /** Max number of characters per account. Note that changing this setting alone is not enough if the client is not hexed to support more characters as well.
@@ -52,9 +46,6 @@
 		#define MAX_CHARS 9
 	#endif
 #endif
-
-typedef uint32 t_itemid;
-
 /** Number of slots carded equipment can have. Never set to less than 4 as they are also used to keep the data of forged items/equipment. [Skotlex]
 * Note: The client seems unable to receive data for more than 4 slots due to all related packets having a fixed size. */
 #define MAX_SLOTS 4
@@ -67,34 +58,23 @@ typedef uint32 t_itemid;
 #define DEFAULT_WALK_SPEED 150 ///Default walk speed
 #define MIN_WALK_SPEED 20 ///Min walk speed
 #define MAX_WALK_SPEED 1000 ///Max walk speed
-#define MAX_STORAGE 600 ///Max number of storage slots a player can have
+#define MAX_STORAGE 800 ///Max number of storage slots a player can have
 #define MAX_GUILD_STORAGE 600 ///Max number of storage slots a guild
 #define MAX_PARTY 12 ///Max party member
-#define MAX_GUILD 16+10*6	///Increased max guild members +6 per 1 extension levels [Lupus]
+#define MAX_GUILD 12+10*1	///Increased max guild members +6 per 1 extension levels [Lupus]
 #define MAX_GUILDPOSITION 20	///Increased max guild positions to accomodate for all members [Valaris] (removed) [PoW]
 #define MAX_GUILDEXPULSION 32 ///Max Guild expulsion
 #define MAX_GUILDALLIANCE 16 ///Max Guild alliance
-#ifdef RENEWAL
-#define MAX_GUILDSKILL	20 ///Max Guild skills
-#else
-#define MAX_GUILDSKILL	15 ///Max Guild skills
-#endif
+#define MAX_GUILDSKILL	17 ///Max Guild skills
 #define MAX_GUILDLEVEL 50 ///Max Guild level
 #define MAX_GUARDIANS 8	///Local max per castle. If this value is increased, need to add more fields on MySQL `guild_castle` table [Skotlex]
 #define MAX_QUEST_OBJECTIVES 3 ///Max quest objectives for a quest
+#define MAX_QUEST_DROPS 3 ///Max quest drops for a quest
 #define MAX_PC_BONUS_SCRIPT 50 ///Max bonus script can be fetched from `bonus_script` table on player load [Cydh]
 #define MAX_ITEM_RDM_OPT 5	 /// Max item random option [Napster]
 #define DB_NAME_LEN 256 //max len of dbs
 #define MAX_CLAN 500
 #define MAX_CLANALLIANCE 6
-
-#ifdef RENEWAL
-	#define MAX_WEAPON_LEVEL 5
-	#define MAX_ARMOR_LEVEL 2
-#else
-	#define MAX_WEAPON_LEVEL 4
-	#define MAX_ARMOR_LEVEL 1
-#endif
 
 // for produce
 #define MIN_ATTRIBUTE 0
@@ -103,8 +83,10 @@ typedef uint32 t_itemid;
 #define MIN_STAR 0
 #define MAX_STAR 3
 
-const t_itemid WEDDING_RING_M = 2634;
-const t_itemid WEDDING_RING_F = 2635;
+#define MAX_STATUS_TYPE 5
+
+#define WEDDING_RING_M 2634
+#define WEDDING_RING_F 2635
 
 //For character names, title names, guilds, maps, etc.
 //Includes null-terminator as it is the length of the array.
@@ -156,9 +138,6 @@ const t_itemid WEDDING_RING_F = 2635;
 #define MAIL_MAX_ITEM 5
 #define MAIL_PAGE_SIZE 7
 #endif
-#ifndef MAIL_ITERATION_SIZE
-	#define MAIL_ITERATION_SIZE 100
-#endif
 
 //Mercenary System
 #define MC_SKILLBASE 8201
@@ -176,6 +155,9 @@ const t_itemid WEDDING_RING_F = 2635;
 #define MAX_ACHIEVEMENT_OBJECTIVES 10 /// Maximum different objectives in achievement_db.yml
 #define MAX_ACHIEVEMENT_DEPENDENTS 20 /// Maximum different dependents in achievement_db.yml
 #define ACHIEVEMENT_NAME_LENGTH 50 /// Max Achievement Name length
+
+// [CreativeSD]: Restock System
+#define MAX_RESTOCK 120
 
 enum item_types {
 	IT_HEALING = 0,
@@ -202,16 +184,16 @@ enum e_mode {
 	MD_LOOTER				= 0x0000002,
 	MD_AGGRESSIVE			= 0x0000004,
 	MD_ASSIST				= 0x0000008,
-	MD_CASTSENSORIDLE		= 0x0000010,
-	MD_NORANDOMWALK			= 0x0000020,
-	MD_NOCAST				= 0x0000040,
+	MD_CASTSENSOR_IDLE		= 0x0000010,
+	MD_NORANDOM_WALK		= 0x0000020,
+	MD_NOCAST_SKILL			= 0x0000040,
 	MD_CANATTACK			= 0x0000080,
 	//FREE					= 0x0000100,
-	MD_CASTSENSORCHASE		= 0x0000200,
+	MD_CASTSENSOR_CHASE		= 0x0000200,
 	MD_CHANGECHASE			= 0x0000400,
 	MD_ANGRY				= 0x0000800,
-	MD_CHANGETARGETMELEE	= 0x0001000,
-	MD_CHANGETARGETCHASE	= 0x0002000,
+	MD_CHANGETARGET_MELEE	= 0x0001000,
+	MD_CHANGETARGET_CHASE	= 0x0002000,
 	MD_TARGETWEAK			= 0x0004000,
 	MD_RANDOMTARGET			= 0x0008000,
 	MD_IGNOREMELEE			= 0x0010000,
@@ -219,13 +201,13 @@ enum e_mode {
 	MD_IGNORERANGED			= 0x0040000,
 	MD_MVP					= 0x0080000,
 	MD_IGNOREMISC			= 0x0100000,
-	MD_KNOCKBACKIMMUNE		= 0x0200000,
-	MD_TELEPORTBLOCK		= 0x0400000,
+	MD_KNOCKBACK_IMMUNE		= 0x0200000,
+	MD_TELEPORT_BLOCK		= 0x0400000,
 	//FREE					= 0x0800000,
-	MD_FIXEDITEMDROP		= 0x1000000,
+	MD_FIXED_ITEMDROP		= 0x1000000,
 	MD_DETECTOR				= 0x2000000,
-	MD_STATUSIMMUNE			= 0x4000000,
-	MD_SKILLIMMUNE			= 0x8000000,
+	MD_STATUS_IMMUNE		= 0x4000000,
+	MD_SKILL_IMMUNE			= 0x8000000,
 };
 
 #define MD_MASK 0x000FFFF
@@ -233,7 +215,7 @@ enum e_mode {
 #define CL_MASK 0xF000000
 
 // Questlog states
-enum e_quest_state : uint8 {
+enum quest_state {
 	Q_INACTIVE, ///< Inactive quest (the user can toggle between active and inactive quests)
 	Q_ACTIVE,   ///< Active quest
 	Q_COMPLETE, ///< Completed quest
@@ -242,9 +224,15 @@ enum e_quest_state : uint8 {
 /// Questlog entry
 struct quest {
 	int quest_id;                    ///< Quest ID
-	uint32 time;                     ///< Expiration time
+	unsigned int time;               ///< Expiration time
 	int count[MAX_QUEST_OBJECTIVES]; ///< Kill counters of each quest objective
-	e_quest_state state;             ///< Current quest state
+	enum quest_state state;          ///< Current quest state
+};
+
+struct s_item_randomoption {
+	short id;
+	short value;
+	char param;
 };
 
 /// Achievement log entry
@@ -256,41 +244,24 @@ struct achievement {
 	int score;                             ///< Amount of points achievement is worth
 };
 
-// NetBSD 5 and Solaris don't like pragma pack but accept the packed attribute
-#if !defined( sun ) && ( !defined( __NETBSD__ ) || __NetBSD_Version__ >= 600000000 )
-	#pragma pack( push, 1 )
-#endif
-
-struct s_item_randomoption {
-	short id;
-	short value;
-	char param;
-} __attribute__((packed));
-
 struct item {
 	int id;
-	t_itemid nameid;
+	unsigned short nameid;
 	short amount;
 	unsigned int equip; // location(s) where item is equipped (using enum equip_pos for bitmasking)
 	char identify;
 	char refine;
 	char attribute;
-	t_itemid card[MAX_SLOTS];
+	unsigned short card[MAX_SLOTS];
 	struct s_item_randomoption option[MAX_ITEM_RDM_OPT];		// max of 5 random options can be supported.
 	unsigned int expire_time;
 	char favorite, bound;
 	uint64 unique_id;
 	unsigned int equipSwitch; // location(s) where item is equipped for equip switching (using enum equip_pos for bitmasking)
-	uint8 enchantgrade;
-} __attribute__((packed));
-
-// NetBSD 5 and Solaris don't like pragma pack but accept the packed attribute
-#if !defined( sun ) && ( !defined( __NETBSD__ ) || __NetBSD_Version__ >= 600000000 )
-	#pragma pack( pop )
-#endif
+};
 
 //Equip position constants
-enum equip_pos : uint32 {
+enum equip_pos {
 	EQP_HEAD_LOW         = 0x000001,
 	EQP_HEAD_MID         = 0x000200, // 512
 	EQP_HEAD_TOP         = 0x000100, // 256
@@ -325,9 +296,8 @@ struct point {
 };
 
 struct startitem {
-	t_itemid nameid;
-	unsigned short amount;
-	uint32 pos;
+	unsigned short nameid, amount;
+	short pos;
 };
 
 enum e_skill_flag
@@ -355,7 +325,7 @@ struct script_reg_state {
 
 struct script_reg_num {
 	struct script_reg_state flag;
-	int64 value;
+	int value;
 };
 
 struct script_reg_str {
@@ -411,7 +381,7 @@ struct s_storage {
 		unsigned get : 1;
 		unsigned put : 1;
 	} state;
-	union { // Max for inventory, storage, cart, and guild storage are 818 each without changing this struct and struct item [2016/08/14]
+	union { // Max for inventory, storage, cart, and guild storage are 1637 each without changing this struct and struct item [2014/10/27]
 		struct item items_inventory[MAX_INVENTORY];
 		struct item items_storage[MAX_STORAGE];
 		struct item items_cart[MAX_CART];
@@ -432,8 +402,8 @@ struct s_pet {
 	int pet_id;
 	short class_;
 	short level;
-	t_itemid egg_id;//pet egg id
-	t_itemid equip;//pet equip name_id
+	unsigned short egg_id;//pet egg id
+	unsigned short equip;//pet equip name_id
 	short intimate;//pet friendly
 	short hungry;//pet hungry
 	char name[NAME_LENGTH];
@@ -454,7 +424,7 @@ struct s_homunculus {	//[orn]
 	struct s_skill hskill[MAX_HOMUNSKILL]; //albator
 	short skillpts;
 	short level;
-	t_exp exp;
+	unsigned int exp;
 	short rename_flag;
 	short vaporize; //albator
 	int str;
@@ -516,7 +486,7 @@ struct mmo_charstatus {
 	uint32 mother;
 	uint32 child;
 
-	t_exp base_exp,job_exp;
+	unsigned int base_exp,job_exp;
 	int zeny;
 
 	short class_; ///< Player's JobID
@@ -542,7 +512,6 @@ struct mmo_charstatus {
 	char name[NAME_LENGTH];
 	unsigned int base_level,job_level;
 	unsigned short str,agi,vit,int_,dex,luk;
-	unsigned short pow,sta,wis,spl,con,crt;
 	unsigned char slot,sex;
 
 	uint32 mapip;
@@ -553,7 +522,7 @@ struct mmo_charstatus {
 
 	struct s_friend friends[MAX_FRIENDS]; //New friend system [Skotlex]
 #ifdef HOTKEY_SAVING
-	struct hotkey hotkeys[MAX_HOTKEYS_DB];
+	struct hotkey hotkeys[MAX_HOTKEYS];
 #endif
 	bool show_equip,allow_party;
 	short rename;
@@ -571,8 +540,13 @@ struct mmo_charstatus {
 	uint32 uniqueitem_counter;
 
 	unsigned char hotkey_rowshift;
-	unsigned char hotkey_rowshift2;
 	unsigned long title_id;
+
+	// [CreativeSD]: Restock System
+	struct item restock[MAX_RESTOCK];
+
+	// [CreativeSD]: Queue System
+	int queue_delay;
 };
 
 typedef enum mail_status {
@@ -661,7 +635,8 @@ struct map_session_data;
 struct guild_member {
 	uint32 account_id, char_id;
 	short hair,hair_color,gender,class_,lv;
-	t_exp exp;
+	uint64 exp;
+	int exp_payper;
 	short online,position;
 	char name[NAME_LENGTH];
 	struct map_session_data *sd;
@@ -696,8 +671,8 @@ struct Channel;
 struct guild {
 	int guild_id;
 	short guild_lv, connect_member, max_member, average_lv;
-	t_exp exp;
-	t_exp next_exp;
+	uint64 exp;
+	unsigned int next_exp;
 	int skill_point;
 	char name[NAME_LENGTH],master[NAME_LENGTH];
 	struct guild_member member[MAX_GUILD];
@@ -709,20 +684,18 @@ struct guild {
 	struct guild_expulsion expulsion[MAX_GUILDEXPULSION];
 	struct guild_skill skill[MAX_GUILDSKILL];
 	struct Channel *channel;
-	int instance_id;
+	unsigned short instance_id;
 	time_t last_leader_change;
 
 	/* Used by char-server to save events for guilds */
 	unsigned short save_flag;
-
-	int32 chargeshout_flag_id;
 };
 
 struct guild_castle {
 	int castle_id;
 	int mapindex;
 	char castle_name[NAME_LENGTH];
-	char castle_event[NPC_NAME_LENGTH];
+	char castle_event[EVENT_NAME_LENGTH];
 	int guild_id;
 	int economy;
 	int defense;
@@ -794,27 +767,24 @@ enum e_guild_member_info { //Change Member Infos
 };
 
 enum e_guild_skill {
-	GD_SKILLBASE = 10000,
-	GD_APPROVAL = 10000,
-	GD_KAFRACONTRACT,
-	GD_GUARDRESEARCH,
-	GD_GUARDUP,
-	GD_EXTENSION,
-	GD_GLORYGUILD,
-	GD_LEADERSHIP,
-	GD_GLORYWOUNDS,
-	GD_SOULCOLD,
-	GD_HAWKEYES,
-	GD_BATTLEORDER,
-	GD_REGENERATION,
-	GD_RESTORE,
-	GD_EMERGENCYCALL,
-	GD_DEVELOPMENT,
-	GD_ITEMEMERGENCYCALL,
-	GD_GUILD_STORAGE,
-	GD_CHARGESHOUT_FLAG,
-	GD_CHARGESHOUT_BEATING,
-	GD_EMERGENCY_MOVE,
+	GD_SKILLBASE=10000,
+	GD_APPROVAL=10000,
+	GD_KAFRACONTRACT=10001,
+	GD_GUARDRESEARCH=10002,
+	GD_GUARDUP=10003,
+	GD_EXTENSION=10004,
+	GD_GLORYGUILD=10005,
+	GD_LEADERSHIP=10006,
+	GD_GLORYWOUNDS=10007,
+	GD_SOULCOLD=10008,
+	GD_HAWKEYES=10009,
+	GD_BATTLEORDER=10010,
+	GD_REGENERATION=10011,
+	GD_RESTORE=10012,
+	GD_EMERGENCYCALL=10013,
+	GD_DEVELOPMENT=10014,
+	GD_ITEMEMERGENCYCALL=10015,
+	GD_GUILD_STORAGE=10016,
 	GD_MAX,
 };
 
@@ -950,22 +920,22 @@ enum e_job {
 	JOB_MECHANIC2,
 	JOB_MECHANIC_T2,
 
-	JOB_BABY_RUNE_KNIGHT = 4096,
+	JOB_BABY_RUNE = 4096,
 	JOB_BABY_WARLOCK,
 	JOB_BABY_RANGER,
-	JOB_BABY_ARCH_BISHOP,
+	JOB_BABY_BISHOP,
 	JOB_BABY_MECHANIC,
-	JOB_BABY_GUILLOTINE_CROSS,
-	JOB_BABY_ROYAL_GUARD,
+	JOB_BABY_CROSS,
+	JOB_BABY_GUARD,
 	JOB_BABY_SORCERER,
 	JOB_BABY_MINSTREL,
 	JOB_BABY_WANDERER,
 	JOB_BABY_SURA,
 	JOB_BABY_GENETIC,
-	JOB_BABY_SHADOW_CHASER,
+	JOB_BABY_CHASER,
 
-	JOB_BABY_RUNE_KNIGHT2,
-	JOB_BABY_ROYAL_GUARD2,
+	JOB_BABY_RUNE2,
+	JOB_BABY_GUARD2,
 	JOB_BABY_RANGER2,
 	JOB_BABY_MECHANIC2,
 
@@ -1002,11 +972,11 @@ enum e_job {
 	JOB_MAX,
 };
 
-enum e_sex : uint8 {
+enum e_sex {
 	SEX_FEMALE = 0,
 	SEX_MALE,
-	SEX_BOTH,
-	SEX_SERVER
+	SEX_SERVER,
+	SEX_ACCOUNT = 99
 };
 
 /// Item Bound Type
@@ -1098,9 +1068,7 @@ struct clan{
 	#ifndef ENABLE_SC_SAVING
 	#warning "Cart won't be able to be saved for relog"
 	#endif
-#if PACKETVER >= 20191106
-	#define MAX_CARTS 13		// used for another new cart design
-#elif PACKETVER >= 20150826
+#if PACKETVER >= 20150826
 	#define MAX_CARTS 12		// used for 3 new cart design
 #else
 	#define MAX_CARTS 9

@@ -630,7 +630,20 @@ int logchrif_parse_pincode_authfail(int fd){
 				return 0;
 			}
 
+// (^~_~^) Gepard Shield Start
+/*
+// (^~_~^) Gepard Shield End
 			login_log( host2ip(acc.last_ip), acc.userid, 100, "PIN Code check failed" );
+// (^~_~^) Gepard Shield Start
+*/
+// (^~_~^) Gepard Shield End
+
+// (^~_~^) Gepard Shield Start
+
+	login_gepard_log(fd, host2ip(acc.last_ip), acc.userid, 100, "PIN Code check failed");
+
+// (^~_~^) Gepard Shield End
+
 		}
 		login_remove_online_user(acc.account_id);
 		RFIFOSKIP(fd,6);
@@ -703,7 +716,7 @@ int logchrif_parse_reqvipdata(int fd) {
 * Get account info that asked by inter/char-server
 */
 int logchrif_parse_accinfo(int fd) {
-	if( RFIFOREST(fd) < 19 )
+	if( RFIFOREST(fd) < 23 )
 		return 0;
 	else {
 		int map_fd = RFIFOL(fd, 2), u_fd = RFIFOL(fd, 6), u_aid = RFIFOL(fd, 10), account_id = RFIFOL(fd, 14);

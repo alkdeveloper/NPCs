@@ -178,12 +178,12 @@ void chlogif_prepsend_global_accreg(void) {
 	}
 }
 
-void chlogif_send_global_accreg(const char *key, unsigned int index, int64 int_value, const char* string_value, bool is_string) {
-	if (!chlogif_isconnected())
-		return;
-
+void chlogif_send_global_accreg(const char *key, unsigned int index, intptr_t val, bool is_string) {
 	int nlen = WFIFOW(login_fd, 2);
 	size_t len;
+
+	if (!chlogif_isconnected())
+		return;
 
 	len = strlen(key)+1;
 
@@ -197,25 +197,26 @@ void chlogif_send_global_accreg(const char *key, unsigned int index, int64 int_v
 	nlen += 4;
 
 	if( is_string ) {
-		WFIFOB(login_fd, nlen) = string_value ? 2 : 3;
+		WFIFOB(login_fd, nlen) = val ? 2 : 3;
 		nlen += 1;
 
-		if( string_value ) {
-			len = strlen(string_value)+1;
+		if( val ) {
+			char *sval = (char*)val;
+			len = strlen(sval)+1;
 
 			WFIFOB(login_fd, nlen) = (unsigned char)len; // won't be higher; the column size is 254
 			nlen += 1;
 
-			safestrncpy(WFIFOCP(login_fd,nlen), string_value, len);
+			safestrncpy(WFIFOCP(login_fd,nlen), sval, len);
 			nlen += len;
 		}
 	} else {
-		WFIFOB(login_fd, nlen) = int_value ? 0 : 1;
+		WFIFOB(login_fd, nlen) = val ? 0 : 1;
 		nlen += 1;
 
-		if( int_value ) {
-			WFIFOQ(login_fd, nlen) = int_value;
-			nlen += 8;
+		if( val ) {
+			WFIFOL(login_fd, nlen) = (int)val;
+			nlen += 4;
 		}
 	}
 
@@ -275,7 +276,7 @@ void chlogif_send_setaccoffline(int fd, int aid){
 	WFIFOSET(fd,6);
 }
 
-int chlogif_parse_ackconnect(int fd){
+int chlogif_parse_ackconnect(int fd, struct char_session_data* sd){
 	if (RFIFOREST(fd) < 3)
 		return 0;
 
@@ -295,11 +296,10 @@ int chlogif_parse_ackconnect(int fd){
 	return 1;
 }
 
-int chlogif_parse_ackaccreq(int fd){
+int chlogif_parse_ackaccreq(int fd, struct char_session_data* sd){
 	if (RFIFOREST(fd) < 21)
 		return 0;
 	{
-		struct char_session_data* sd;
 		uint32 account_id = RFIFOL(fd,2);
 		uint32 login_id1 = RFIFOL(fd,6);
 		uint32 login_id2 = RFIFOL(fd,10);
@@ -333,16 +333,16 @@ int chlogif_parse_ackaccreq(int fd){
  * Receive account data from login-server
  * AH 0x2717 <aid>.L <email>.40B <expiration_time>.L <group_id>.B <birthdate>.11B <pincode>.5B <pincode_change>.L <isvip>.B <char_vip>.B <char_billing>.B
  **/
-int chlogif_parse_reqaccdata(int fd){
+int chlogif_parse_reqaccdata(int fd, struct char_session_data* sd){
+	int u_fd; //user fd
 	if (RFIFOREST(fd) < 75)
 		return 0;
-	int u_fd; //user fd
-	struct char_session_data* sd;
 
 	// find the authenticated session with this account id
 	ARR_FIND( 0, fd_max, u_fd, session[u_fd] && (sd = (struct char_session_data*)session[u_fd]->session_data) && sd->auth && sd->account_id == RFIFOL(fd,2) );
 	if( u_fd < fd_max )
 	{
+		int server_id;
 		memcpy(sd->email, RFIFOP(fd,6), 40);
 		sd->expiration_time = (time_t)RFIFOL(fd,46);
 		sd->group_id = RFIFOB(fd,50);
@@ -358,10 +358,12 @@ int chlogif_parse_reqaccdata(int fd){
 		sd->isvip = RFIFOB(fd,72);
 		sd->chars_vip = RFIFOB(fd,73);
 		sd->chars_billing = RFIFOB(fd,74);
+		ARR_FIND( 0, ARRAYLENGTH(map_server), server_id, map_server[server_id].fd > 0 && map_server[server_id].map[0] );
 		// continued from char_auth_ok...
-		if(((charserv_config.max_connect_user == 0 || charserv_config.char_maintenance == 1) ||
+		if( server_id == ARRAYLENGTH(map_server) || //server not online, bugreport:2359
+			(((charserv_config.max_connect_user == 0 || charserv_config.char_maintenance == 1) ||
 			(charserv_config.max_connect_user > 0 && char_count_users() >= charserv_config.max_connect_user)) &&
-			sd->group_id < charserv_config.gm_allow_group) {
+			sd->group_id < charserv_config.gm_allow_group)) {
 			// refuse connection (over populated)
 			chclif_reject(u_fd,0);
 		} else {
@@ -376,7 +378,7 @@ int chlogif_parse_reqaccdata(int fd){
 	return 1;
 }
 
-int chlogif_parse_keepalive(int fd){
+int chlogif_parse_keepalive(int fd, struct char_session_data* sd){
 	if (RFIFOREST(fd) < 2)
 		return 0;
 	RFIFOSKIP(fd,2);
@@ -418,13 +420,13 @@ void chlogif_parse_change_sex_sub(int sex, int acc, int char_id, int class_, int
 	if (SQL_ERROR == Sql_Query(sql_handle, "UPDATE `%s` SET `equip` = '0' WHERE `char_id` = '%d'", schema_config.inventory_db, char_id))
 		Sql_ShowDebug(sql_handle);
 
-	if (SQL_ERROR == Sql_Query(sql_handle, "UPDATE `%s` SET `class` = '%d', `weapon` = '0', `shield` = '0', `head_top` = '0', `head_mid` = '0', `head_bottom` = '0', `sex` = '%c' WHERE `char_id` = '%d'", schema_config.char_db, class_, sex == SEX_MALE ? 'M' : 'F', char_id))
+	if (SQL_ERROR == Sql_Query(sql_handle, "UPDATE `%s` SET `class` = '%d', `weapon` = '0', `shield` = '0', `head_top` = '0', `head_mid` = '0', `head_bottom` = '0' WHERE `char_id` = '%d'", schema_config.char_db, class_, char_id))
 		Sql_ShowDebug(sql_handle);
 	if (guild_id) // If there is a guild, update the guild_member data [Skotlex]
 		inter_guild_sex_changed(guild_id, acc, char_id, sex);
 }
 
-int chlogif_parse_ackchangesex(int fd)
+int chlogif_parse_ackchangesex(int fd, struct char_session_data* sd)
 {
 	if (RFIFOREST(fd) < 7)
 		return 0;
@@ -501,6 +503,10 @@ int chlogif_parse_ackchangecharsex(int char_id, int sex)
 	Sql_GetData(sql_handle, 2, &data, NULL); guild_id = atoi(data);
 	Sql_FreeResult(sql_handle);
 
+	if (SQL_ERROR == Sql_Query(sql_handle, "UPDATE `%s` SET `sex` = '%c' WHERE `char_id` = '%d'", schema_config.char_db, sex == SEX_MALE ? 'M' : 'F', char_id)) {
+		Sql_ShowDebug(sql_handle);
+		return 1;
+	}
 	chlogif_parse_change_sex_sub(sex, account_id, char_id, class_, guild_id);
 
 	// disconnect player if online on char-server
@@ -514,7 +520,7 @@ int chlogif_parse_ackchangecharsex(int char_id, int sex)
 	return 0;
 }
 
-int chlogif_parse_ack_global_accreg(int fd){
+int chlogif_parse_ack_global_accreg(int fd, struct char_session_data* sd){
 	if (RFIFOREST(fd) < 4 || RFIFOREST(fd) < RFIFOW(fd,2))
 		return 0;
 	else { //Receive account_reg2 registry, forward to map servers.
@@ -525,7 +531,7 @@ int chlogif_parse_ack_global_accreg(int fd){
 	return 1;
 }
 
-int chlogif_parse_accbannotification(int fd){
+int chlogif_parse_accbannotification(int fd, struct char_session_data* sd){
 	if (RFIFOREST(fd) < 11)
 		return 0;
 	else { // send to all map-servers to disconnect the player
@@ -542,7 +548,7 @@ int chlogif_parse_accbannotification(int fd){
 	return 1;
 }
 
-int chlogif_parse_askkick(int fd){
+int chlogif_parse_askkick(int fd, struct char_session_data* sd){
 	if (RFIFOREST(fd) < 6)
 		return 0;
 	else {
@@ -578,7 +584,7 @@ int chlogif_parse_askkick(int fd){
 	return 1;
 }
 
-int chlogif_parse_updip(int fd){
+int chlogif_parse_updip(int fd, struct char_session_data* sd){
 	unsigned char buf[2];
 	uint32 new_ip = 0;
 
@@ -695,6 +701,7 @@ int chlogif_parse_AccInfoAck(int fd) {
 
 
 int chlogif_parse(int fd) {
+	struct char_session_data* sd = NULL;
 
 	// only process data from the login-server
 	if( fd != login_fd ) {
@@ -721,6 +728,8 @@ int chlogif_parse(int fd) {
 		}
 	}
 
+	sd = (struct char_session_data*)session[fd]->session_data;
+
 	while(RFIFOREST(fd) >= 2) {
 		// -1: Login server is not connected
 		//  0: Avoid processing followup packets (prev was probably incomplete) packet
@@ -728,16 +737,16 @@ int chlogif_parse(int fd) {
 		int next = 1;
 		uint16 command = RFIFOW(fd,0);
 		switch( command ) {
-			case 0x2711: next = chlogif_parse_ackconnect(fd); break;
-			case 0x2713: next = chlogif_parse_ackaccreq(fd); break;
-			case 0x2717: next = chlogif_parse_reqaccdata(fd); break;
-			case 0x2718: next = chlogif_parse_keepalive(fd); break;
+			case 0x2711: next = chlogif_parse_ackconnect(fd,sd); break;
+			case 0x2713: next = chlogif_parse_ackaccreq(fd, sd); break;
+			case 0x2717: next = chlogif_parse_reqaccdata(fd, sd); break;
+			case 0x2718: next = chlogif_parse_keepalive(fd, sd); break;
 			case 0x2721: next = chlogif_parse_AccInfoAck(fd); break;
-			case 0x2723: next = chlogif_parse_ackchangesex(fd); break;
-			case 0x2726: next = chlogif_parse_ack_global_accreg(fd); break;
-			case 0x2731: next = chlogif_parse_accbannotification(fd); break;
-			case 0x2734: next = chlogif_parse_askkick(fd); break;
-			case 0x2735: next = chlogif_parse_updip(fd); break;
+			case 0x2723: next = chlogif_parse_ackchangesex(fd, sd); break;
+			case 0x2726: next = chlogif_parse_ack_global_accreg(fd, sd); break;
+			case 0x2731: next = chlogif_parse_accbannotification(fd, sd); break;
+			case 0x2734: next = chlogif_parse_askkick(fd,sd); break;
+			case 0x2735: next = chlogif_parse_updip(fd,sd); break;
 			case 0x2743: next = chlogif_parse_vipack(fd); break;
 			default:
 				ShowError("Unknown packet 0x%04x received from login-server, disconnecting.\n", command);
@@ -753,7 +762,7 @@ int chlogif_parse(int fd) {
 }
 
 TIMER_FUNC(chlogif_check_connect_logserver){
-	if (chlogif_isconnected())
+	if (login_fd > 0 && session[login_fd] != NULL)
 		return 0;
 
 	ShowInfo("Attempt to connect to login-server...\n");
@@ -786,7 +795,7 @@ TIMER_FUNC(chlogif_check_connect_logserver){
 
 
 int chlogif_isconnected(){
-	return session_isActive(login_fd);
+	return (login_fd > 0 && session[login_fd] && !session[login_fd]->flag.eof);
 }
 
 void do_init_chlogif(void) {
@@ -835,7 +844,7 @@ void chlogif_on_ready(void)
 	chlogif_send_acc_tologin(INVALID_TIMER, gettick(), 0, 0);
 
 	// if no map-server already connected, display a message...
-	ARR_FIND( 0, ARRAYLENGTH(map_server), i, session_isValid(map_server[i].fd) && !map_server[i].map.empty() );
+	ARR_FIND( 0, ARRAYLENGTH(map_server), i, map_server[i].fd > 0 && map_server[i].map[0] );
 	if( i == ARRAYLENGTH(map_server) )
 		ShowStatus("Awaiting maps from map-server.\n");
 }

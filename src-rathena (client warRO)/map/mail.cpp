@@ -16,7 +16,6 @@
 #include "itemdb.hpp"
 #include "log.hpp"
 #include "pc.hpp"
-#include "pet.hpp"
 
 void mail_clear(struct map_session_data *sd)
 {
@@ -130,6 +129,12 @@ enum mail_attach_result mail_setitem(struct map_session_data *sd, short idx, uin
 	if( pc_istrading(sd) )
 		return MAIL_ATTACH_ERROR;
 
+	if( sd->state.protection_acc )
+	{
+		clif_displaymessage(sd->fd, msg_txt(sd,4000));
+		return MAIL_ATTACH_ERROR;
+	}
+
 	if( idx == 0 ) { // Zeny Transfer
 		if( !pc_can_give_items(sd) )
 			return MAIL_ATTACH_UNTRADEABLE;
@@ -184,12 +189,10 @@ enum mail_attach_result mail_setitem(struct map_session_data *sd, short idx, uin
 
 			// Check if it exceeds the total weight
 			if( battle_config.mail_attachment_weight ){
-				// Sum up all items to get the current total weight
-				for( j = 0; j < MAIL_MAX_ITEM; j++ ){
+				for( j = 0; j < i; j++ ){
 					total += sd->mail.item[j].amount * ( sd->inventory_data[sd->mail.item[j].index]->weight / 10 );
 				}
 
-				// Add the newly added weight to the current total
 				total += amount * sd->inventory_data[idx]->weight / 10;
 
 				if( total > battle_config.mail_attachment_weight ){
@@ -209,12 +212,10 @@ enum mail_attach_result mail_setitem(struct map_session_data *sd, short idx, uin
 
 			// Check if it exceeds the total weight
 			if( battle_config.mail_attachment_weight ){
-				// Only need to sum up all entries until the new entry
 				for( j = 0; j < i; j++ ){
 					total += sd->mail.item[j].amount * ( sd->inventory_data[sd->mail.item[j].index]->weight / 10 );
 				}
 
-				// Add the newly added weight to the current total
 				total += amount * sd->inventory_data[idx]->weight / 10;
 
 				if( total > battle_config.mail_attachment_weight ){
@@ -293,53 +294,9 @@ void mail_getattachment(struct map_session_data* sd, struct mail_message* msg, i
 	bool item_received = false;
 
 	for( i = 0; i < MAIL_MAX_ITEM; i++ ){
-		if( item[i].nameid > 0 && item[i].amount > 0 ){
-			struct item_data* id = itemdb_search( item[i].nameid );
-
-			// Item does not exist (anymore?)
-			if( id == nullptr ){
-				continue;
-			}
-
-			// Reduce the pending weight
-			sd->mail.pending_weight -= ( id->weight * item[i].amount );
-
-			// Check if it is a pet egg
-			std::shared_ptr<s_pet_db> pet = pet_db_search( item[i].nameid, PET_EGG );
-
-			// If it is a pet egg and the card data does not contain a pet id or other special ids are set
-			if( pet != nullptr && item[i].card[0] == 0 ){
-				// Create a new pet
-				if( pet_create_egg( sd, item[i].nameid ) ){
-					sd->mail.pending_slots--;
-					item_received = true;
-				}else{
-					// Do not send receive packet so that the mail is still displayed with item attachment
-					item_received = false;
-					// Additionally stop the processing
-					break;
-				}
-			}else{
-				char check = pc_checkadditem( sd, item[i].nameid, item[i].amount );
-
-				// Add the item normally
-				if( check != CHKADDITEM_OVERAMOUNT && pc_additem( sd, &item[i], item[i].amount, LOG_TYPE_MAIL ) == ADDITEM_SUCCESS ){
-					item_received = true;
-
-					// Only reduce slots if it really required a new slot
-					if( check == CHKADDITEM_NEW ){
-						sd->mail.pending_slots -= id->inventorySlotNeeded( item[i].amount );
-					}
-				}else{
-					// Do not send receive packet so that the mail is still displayed with item attachment
-					item_received = false;
-					// Additionally stop the processing
-					break;
-				}
-			}
-
-			// Make sure no requests are possible anymore
-			item[i].amount = 0;
+		if( item->nameid > 0 && item->amount > 0 ){
+			pc_additem(sd, &item[i], item[i].amount, LOG_TYPE_MAIL);
+			item_received = true;
 		}	
 	}
 
@@ -349,10 +306,6 @@ void mail_getattachment(struct map_session_data* sd, struct mail_message* msg, i
 
 	// Zeny receive
 	if( zeny > 0 ){
-		// Reduce the pending zeny
-		sd->mail.pending_zeny -= zeny;
-
-		// Add the zeny
 		pc_getzeny(sd, zeny,LOG_TYPE_MAIL, NULL);
 		clif_mail_getattachment( sd, msg, 0, MAIL_ATT_ZENY );
 	}
@@ -400,14 +353,9 @@ bool mail_invalid_operation(struct map_session_data *sd)
 		ShowWarning("clif_parse_Mail: char '%s' trying to do invalid mail operations.\n", sd->status.name);
 		return true;
 	}
-#else
-	if( map_getmapflag( sd->bl.m, MF_NORODEX ) ){
-		clif_displaymessage( sd->fd, msg_txt( sd, 796 ) ); // You cannot use RODEX on this map.
-		return true;
-	}
+#endif
 
 	return false;
-#endif
 }
 
 /**

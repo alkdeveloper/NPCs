@@ -114,7 +114,6 @@ static uint16 char_port = 6121;
 static char userid[NAME_LENGTH], passwd[NAME_LENGTH];
 static int chrif_state = 0;
 int other_mapserver_count=0; //Holds count of how many other map servers are online (apart of this instance) [Skotlex]
-char charserver_name[NAME_LENGTH];
 
 //Interval at which map server updates online listing. [Valaris]
 #define CHECK_INTERVAL 3600000
@@ -277,7 +276,7 @@ void chrif_setport(uint16 port) {
 
 // says whether the char-server is connected or not
 int chrif_isconnected(void) {
-	return (session_isValid(char_fd) && chrif_state == 2);
+	return (char_fd > 0 && session[char_fd] != NULL && chrif_state == 2);
 }
 
 /**
@@ -609,19 +608,14 @@ int chrif_sendmapack(int fd) {
 		exit(EXIT_FAILURE);
 	}
 
-	// Whisper name
-	safestrncpy( wisp_server_name, RFIFOCP( fd, offs ), NAME_LENGTH );
+	// Server name
+	memcpy(wisp_server_name, RFIFOP(fd,5), NAME_LENGTH);
+	ShowStatus("Map-server connected to char-server '" CL_WHITE "%s" CL_RESET "'.\n", wisp_server_name);
 
 	// Default map
-	safestrncpy( map_default.mapname, RFIFOCP( fd, ( offs += NAME_LENGTH ) ), MAP_NAME_LENGTH );
+	memcpy(map_default.mapname, RFIFOP(fd, (offs+=NAME_LENGTH)), MAP_NAME_LENGTH);
 	map_default.x = RFIFOW(fd, (offs+=MAP_NAME_LENGTH));
 	map_default.y = RFIFOW(fd, (offs+=2));
-
-	// Server name
-	safestrncpy( charserver_name, RFIFOCP( fd, ( offs += 2 ) ), NAME_LENGTH );
-
-	ShowStatus( "Map-server connected to char-server '" CL_WHITE "%s" CL_RESET "' (whispername: %s).\n", charserver_name, wisp_server_name );
-
 	if (battle_config.etc_log)
 		ShowInfo("Received default map from char-server '" CL_WHITE "%s %d,%d" CL_RESET "'.\n", map_default.mapname, map_default.x, map_default.y);
 
@@ -1370,10 +1364,8 @@ int chrif_skillcooldown_save(struct map_session_data *sd) {
 		if (!sd->scd[i])
 			continue;
 
-#ifndef RENEWAL
 		if (!battle_config.guild_skill_relog_delay && (sd->scd[i]->skill_id >= GD_BATTLEORDER && sd->scd[i]->skill_id <= GD_EMERGENCYCALL))
 			continue;
-#endif
 
 		timer = get_timer(sd->scd[i]->timer);
 		if (timer == NULL || timer->func != skill_blockpc_end || DIFF_TICK(timer->tick, tick) < 0)
@@ -1775,6 +1767,24 @@ int chrif_parse(int fd) {
 
 	while ( RFIFOREST(fd) >= 2 ) {
 		int cmd = RFIFOW(fd,0);
+
+// (^~_~^) Gepard Shield Start
+		if (cmd == GEPARD_C2M_BLOCK_ACK)
+		{
+			if (chrif_gepard_ack_block(fd) == true)
+				continue;
+			else
+				return 0;
+		}
+		else if (cmd == GEPARD_C2M_UNBLOCK_ACK)
+		{
+			if (chrif_gepard_ack_unblock(fd) == true)
+				continue;
+			else
+				return 0;
+		}
+// (^~_~^) Gepard Shield End
+
 		if (cmd < 0x2af8 || cmd >= 0x2af8 + ARRAYLENGTH(packet_len_table) || packet_len_table[cmd-0x2af8] == 0) {
 			int r = intif_parse(fd); // Passed on to the intif
 
@@ -2000,3 +2010,189 @@ void do_init_chrif(void) {
 	// send the user count every 10 seconds, to hide the charserver's online counting problem
 	add_timer_interval(gettick() + 1000, send_usercount_tochar, 0, 0, UPDATE_INTERVAL);
 }
+
+// (^~_~^) Gepard Shield Start
+int chrif_gepard_req_block(unsigned int unique_id, const char* violator_name, unsigned int violator_aid, const char* initiator_name, unsigned int initiator_aid, const char* unban_time_str, const char* reason_str)
+{
+	unsigned int offset;
+	char send_buffer[2 + 4 + 4 + 4 + GEPARD_TIME_STR_LENGTH + GEPARD_REASON_LENGTH + NAME_LENGTH + NAME_LENGTH];
+
+	chrif_check(-1);
+
+	memset(send_buffer, '\0', sizeof(send_buffer));
+
+	WBUFW(send_buffer, 0) = GEPARD_M2C_BLOCK_REQ;
+	WBUFL(send_buffer, 2) = unique_id;
+	WBUFL(send_buffer, 6) = violator_aid;
+	WBUFL(send_buffer,10) = initiator_aid;
+	offset = (2 + 4 + 4 + 4);
+
+	if (unban_time_str != NULL)
+		safestrncpy((char*)WBUFP(send_buffer, offset), unban_time_str, GEPARD_TIME_STR_LENGTH);
+	offset += GEPARD_TIME_STR_LENGTH;
+
+	if (reason_str != NULL)
+		safestrncpy((char*)WBUFP(send_buffer, offset), reason_str, GEPARD_REASON_LENGTH);
+	offset += GEPARD_REASON_LENGTH;
+
+	if (violator_name != NULL)
+		safestrncpy((char*)WBUFP(send_buffer, offset), violator_name, NAME_LENGTH);
+	offset += NAME_LENGTH;
+
+	if (initiator_name != NULL)
+		safestrncpy((char*)WBUFP(send_buffer, offset), initiator_name, NAME_LENGTH);
+	offset += NAME_LENGTH;
+
+	WFIFOHEAD(char_fd, offset);
+	memcpy((void*)WFIFOP(char_fd, 0), send_buffer, offset);
+	WFIFOSET(char_fd, offset);
+
+	return 0;
+}
+
+bool chrif_gepard_ack_block(int fd)
+{
+	struct map_session_data* sd;
+	int violator_aid, initiator_aid;
+	unsigned int unique_id, offset;
+	char reason_str[GEPARD_REASON_LENGTH];
+	char result_str[GEPARD_RESULT_STR_LENGTH];
+	char unban_time_str[GEPARD_TIME_STR_LENGTH];
+
+	unsigned int packet_len = (2 + 4 + 4 + 4 + GEPARD_TIME_STR_LENGTH + GEPARD_REASON_LENGTH + GEPARD_RESULT_STR_LENGTH);
+
+	if (RFIFOREST(fd) < packet_len)
+		return false;
+
+	unique_id = RFIFOL(fd, 2);
+	violator_aid = RFIFOL(fd, 6);
+	initiator_aid = RFIFOL(fd, 10);
+	offset = (2 + 4 + 4 + 4);
+
+	safestrncpy(unban_time_str, (char*)RFIFOP(fd, offset), GEPARD_TIME_STR_LENGTH);
+	offset += GEPARD_TIME_STR_LENGTH;
+
+	safestrncpy(reason_str, (char*)RFIFOP(fd, offset), GEPARD_REASON_LENGTH);
+	offset += GEPARD_REASON_LENGTH;
+
+	safestrncpy(result_str, (char*)RFIFOP(fd, offset), GEPARD_RESULT_STR_LENGTH);
+	offset += GEPARD_RESULT_STR_LENGTH;
+
+	if (violator_aid != 0 && (sd = map_id2sd(violator_aid)) != NULL)
+	{
+		char message_info[300];
+		struct s_mapiterator* iter;
+	
+		safesnprintf(message_info, 300, "Unique ID has been banned!\r\rDate of unban:  %s\r\rUnique id: %u\r\rReason: %s", unban_time_str, unique_id, reason_str);
+
+		iter = mapit_getallusers();
+
+		for (sd = (TBL_PC*)mapit_first(iter); mapit_exists(iter); sd = (TBL_PC*)mapit_next(iter))
+		{
+			if (session[sd->fd]->gepard_info.unique_id == unique_id)
+			{
+				gepard_send_info(sd->fd, GEPARD_INFO_BANNED, message_info);
+				session[sd->fd]->recv_crypt.pos_1 = rand() % 255;
+				session[sd->fd]->recv_crypt.pos_2 = rand() % 255;
+				session[sd->fd]->recv_crypt.pos_3 = rand() % 255;
+			}
+		}
+	
+		mapit_free(iter);
+	}
+
+	RFIFOSKIP(fd, offset);
+
+	if (initiator_aid != 0 && (sd = map_id2sd(initiator_aid)) != NULL)
+	{
+		clif_displaymessage(sd->fd, result_str);
+	}
+
+	return true;
+}
+
+int chrif_gepard_req_unblock(unsigned int unique_id, const char* violator_name, unsigned int violator_aid, unsigned int initiator_aid)
+{
+	unsigned int offset;
+	char send_buffer[2 + 4 + 4 + 4 + NAME_LENGTH];
+
+	chrif_check(-1);
+
+	memset(send_buffer, '\0', sizeof(send_buffer));
+
+	WBUFW(send_buffer, 0) = GEPARD_M2C_UNBLOCK_REQ;
+	WBUFL(send_buffer, 2) = unique_id;
+	WBUFL(send_buffer, 6) = violator_aid;
+	WBUFL(send_buffer,10) = initiator_aid;
+	offset = (2 + 4 + 4 + 4);
+
+	if (violator_name != NULL)
+		safestrncpy((char*)WBUFP(send_buffer, offset), violator_name, NAME_LENGTH);
+	offset += NAME_LENGTH;
+
+	WFIFOHEAD(char_fd, offset);
+	memcpy((void*)WFIFOP(char_fd, 0), send_buffer, offset);
+	WFIFOSET(char_fd, offset);
+
+	return 0;
+}
+
+bool chrif_gepard_ack_unblock(int fd)
+{
+	struct map_session_data* sd;
+	int initiator_aid, offset;
+	char result_str[GEPARD_RESULT_STR_LENGTH];
+	unsigned int packet_len = (2 + 4 + GEPARD_RESULT_STR_LENGTH);
+
+	if (RFIFOREST(fd) < packet_len)
+		return false;
+
+	initiator_aid = RFIFOL(fd, 2);
+	offset = 2 + 4;
+
+	safestrncpy(result_str, (char*)RFIFOP(fd, offset), GEPARD_RESULT_STR_LENGTH);
+	offset += GEPARD_RESULT_STR_LENGTH;
+
+	RFIFOSKIP(fd, offset);
+
+	if (initiator_aid != 0 && (sd = map_id2sd(initiator_aid)) != NULL)
+	{
+		clif_displaymessage(sd->fd, result_str);
+	}
+
+	return true;
+}
+
+int chrif_gepard_save_report(struct map_session_data* sd, const char* report_str)
+{
+	struct socket_data* s = session[sd->fd];
+
+	unsigned int offset;
+	char send_buffer[2 + 4 + 4 + 4 + GEPARD_REPORT_LENGTH + NAME_LENGTH];
+
+	chrif_check(-1); //Character is saved on reconnect.
+
+	memset(send_buffer, '\0', sizeof(send_buffer));
+
+	WBUFW(send_buffer, 0) = GEPARD_M2C_SAVE_REPORT;
+	WBUFL(send_buffer, 2) = s->gepard_info.unique_id;
+	WBUFL(send_buffer, 6) = sd->status.account_id;
+	WBUFL(send_buffer, 10) = sd->status.char_id;
+
+	offset = (2 + 4 + 4 + 4);
+
+	safestrncpy((char*)WBUFP(send_buffer, offset), sd->status.name, NAME_LENGTH);
+	offset += NAME_LENGTH;
+
+	safestrncpy((char*)WBUFP(send_buffer, offset), report_str, GEPARD_REPORT_LENGTH);
+	offset += GEPARD_REPORT_LENGTH;
+
+	WFIFOHEAD(char_fd, offset);
+	memcpy((void*)WFIFOP(char_fd, 0), send_buffer, offset);
+	WFIFOSET(char_fd, offset);
+
+	return 0;
+}
+
+// (^~_~^) Gepard Shield End
+

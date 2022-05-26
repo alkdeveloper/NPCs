@@ -10,7 +10,6 @@
 #include "../common/showmsg.hpp" // ShowInfo
 #include "../common/strlib.hpp"
 #include "../common/timer.hpp"  // DIFF_TICK
-#include "../common/utils.hpp"
 
 #include "achievement.hpp"
 #include "atcommand.hpp"
@@ -19,13 +18,14 @@
 #include "buyingstore.hpp" // struct s_autotrade_entry, struct s_autotrader
 #include "chrif.hpp"
 #include "clif.hpp"
-#include "itemdb.hpp"
 #include "intif.hpp"
+#include "itemdb.hpp"
 #include "log.hpp"
 #include "npc.hpp"
 #include "path.hpp"
 #include "pc.hpp"
 #include "pc_groups.hpp"
+
 
 static uint32 vending_nextid = 0; ///Vending_id counter
 static DBMap *vending_db; ///DB holder the vender : charid -> map_session_data
@@ -98,9 +98,9 @@ void vending_vendinglistreq(struct map_session_data* sd, int id)
 	* Extended Vending system [Lilith]
 	**/
 	if (battle_config.extended_vending && vsd->vend_loot) {
-		char output[CHAT_SIZE_MAX]; // Extended Vending system [Lilith]
-		sprintf(output, msg_txt(sd, 1595), vsd->status.name, itemdb_ename(vsd->vend_loot));
-		if (battle_config.show_broadcast_info)
+		char output[1024]; // Extended Vending system [Lilith]
+		sprintf(output, msg_txt(sd, 1595), vsd->status.name, itemdb_jname(vsd->vend_loot));
+		if (battle_config.show_broadcas_info)
 			clif_broadcast(&sd->bl, output, (int)strlen(output) + 1, 0x10, SELF);
 		else
 			clif_messagecolor(&sd->bl, color_table[COLOR_CYAN], output, false, SELF);
@@ -108,7 +108,7 @@ void vending_vendinglistreq(struct map_session_data* sd, int id)
 
 	sd->vended_id = vsd->vender_id;  // register vending uid
 
-	clif_vendinglist( sd, vsd );
+	clif_vendinglist(sd, id, vsd->vending);
 }
 
 /**
@@ -189,7 +189,7 @@ void vending_purchasereq(struct map_session_data* sd, int aid, int uid, const ui
 		* Extended Vending system [Lilith]
 		**/
 		if (battle_config.extended_vending) {
-			if (vsd->vend_loot == battle_config.item_zeny || !vsd->vend_loot) {
+			if (vsd->vend_loot == ITEMID_ZENY || !vsd->vend_loot) {
 				if (z > (double)sd->status.zeny || z < 0. || z >(double)MAX_ZENY)
 				{
 					//clif_buyvending(sd, idx, amount, 1); // you don't have enough zeny
@@ -201,24 +201,21 @@ void vending_purchasereq(struct map_session_data* sd, int aid, int uid, const ui
 					return;
 				}
 			}
-			else if (vsd->vend_loot == battle_config.item_cash) {
+			else if (vsd->vend_loot == ITEMID_CASH) {
 				if (z > sd->cashPoints || z < 0. || z >(double)MAX_ZENY) {
 					clif_messagecolor(&sd->bl, color_table[COLOR_CYAN], msg_txt(sd, 1590), false, SELF);
 					return;
 				}
 			}
 			else {
-				int k, j = 0, loot_count = 0, vsd_w = 0;
-				if (battle_config.ex_buying_bound) {
-					for (k = 0; k < MAX_INVENTORY; k++) {
-						if (sd->inventory.u.items_inventory[k].nameid == vsd->vend_loot) {
-							if (sd->inventory.u.items_inventory[k].bound) {
-								clif_displaymessage(sd->fd, msg_txt(sd,1604));
-								return;
-							}
-							loot_count += sd->inventory.u.items_inventory[k].amount;
-						}
+				int k, loot_count = 0, vsd_w = 0;
+				for (k = 0; k < MAX_INVENTORY; k++) {
+					if (sd->inventory.u.items_inventory[k].bound) {
+						clif_displaymessage(sd->fd, "Cannot buy with Bound Items.");
+						return;
 					}
+					if (sd->inventory.u.items_inventory[k].nameid == vsd->vend_loot)
+						loot_count += sd->inventory.u.items_inventory[k].amount;
 				}
  
 				if (z > loot_count || z < 0)
@@ -237,14 +234,6 @@ void vending_purchasereq(struct map_session_data* sd, int aid, int uid, const ui
 					clif_messagecolor(&sd->bl, color_table[COLOR_CYAN], msg_txt(sd, 1593), false, SELF);
 					return;
 				}
-				for (k = 0; k < MAX_INVENTORY; k++) {
-					if (vsd->inventory.u.items_inventory[k].nameid == vsd->vend_loot) {
-						if ((vsd->inventory.u.items_inventory[k].amount + loot_count) > MAX_AMOUNT) {
-							clif_displaymessage(sd->fd, msg_txt(sd,1605));
-							return;
-						}
-					}
-				}
 			}
 		}
 		else {
@@ -258,6 +247,7 @@ void vending_purchasereq(struct map_session_data* sd, int aid, int uid, const ui
 				clif_buyvending(sd, idx, vsd->vending[j].amount, 4); // too much zeny = overflow
 				return;
 			}
+
 		}
 		w += itemdb_weight(vsd->cart.u.items_cart[idx].nameid) * amount;
 		if( w + sd->weight > sd->max_weight ) {
@@ -296,13 +286,13 @@ void vending_purchasereq(struct map_session_data* sd, int aid, int uid, const ui
 	* Extended Vending system [Lilith]
 	**/
 	if (battle_config.extended_vending) {
-		if (vsd->vend_loot == battle_config.item_zeny || !vsd->vend_loot) {
+		if (vsd->vend_loot == ITEMID_ZENY || !vsd->vend_loot) {
 			pc_payzeny(sd, (int)z, LOG_TYPE_VENDING, vsd);
 			achievement_update_objective(sd, AG_SPEND_ZENY, 1, (int)z);
 			z = vending_calc_tax(sd, z);
 			pc_getzeny(vsd, (int)z, LOG_TYPE_VENDING, sd);
 		}
-		else if (vsd->vend_loot == battle_config.item_cash) {
+		else if (vsd->vend_loot == ITEMID_CASH) {
 			pc_paycash(sd, (int)z, 0, LOG_TYPE_VENDING);
 			pc_getcash(vsd, (int)z, 0, LOG_TYPE_VENDING);
 		}
@@ -330,14 +320,13 @@ void vending_purchasereq(struct map_session_data* sd, int aid, int uid, const ui
 		short idx    = *(uint16*)(data + 4*i + 2);
 		idx -= 2;
 		z = 0.; // zeny counter
-
-		// Save Item Info [Easycore]
-		struct item_data* item_sold = itemdb_exists(vsd->cart.u.items_cart[idx].nameid);
-
+		
+		// Store Item Name [Easycore]
+		const char *item_name = itemdb_jname(vsd->cart.u.items_cart[idx].nameid);
 		// vending item
 		pc_additem(sd, &vsd->cart.u.items_cart[idx], amount, LOG_TYPE_VENDING);
 		vsd->vending[vend_list[i]].amount -= amount;
-		z += ((double)vsd->vending[vend_list[i]].value * (double)amount);
+		z += ((double)vsd->vending[i].value * (double)amount);
 
 		if( vsd->vending[vend_list[i]].amount ) {
 			if( Sql_Query( mmysql_handle, "UPDATE `%s` SET `amount` = %d WHERE `vending_id` = %d and `cartinventory_id` = %d", vending_items_table, vsd->vending[vend_list[i]].amount, vsd->vender_id, vsd->cart.u.items_cart[idx].id ) != SQL_SUCCESS ) {
@@ -359,9 +348,9 @@ void vending_purchasereq(struct map_session_data* sd, int aid, int uid, const ui
 			if (battle_config.ex_vending_info) {// Extended Vending system [Lilith]
 				double rev = ((double)vsd->vending[vend_list[i]].value * (double)amount);
 				if (vsd->vend_loot == ITEMID_ZENY)
-					sprintf(temp, msg_txt(sd, 1597), sd->status.name, item_sold->ename.c_str(), amount, (int)(rev -= rev * (battle_config.vending_tax / 10000.)),"Zeny");
+					sprintf(temp, msg_txt(sd, 1597), sd->status.name, item_name, amount, (int)(rev -= rev * (battle_config.vending_tax / 10000.)),"Zeny");
 				else
-					sprintf(temp, msg_txt(sd, 1597), sd->status.name, item_sold->ename.c_str(), amount, (int)rev, itemdb_ename(vsd->vend_loot)); //No Tax for Items/Cash [Easycore]
+					sprintf(temp, msg_txt(sd, 1597), sd->status.name, item_name, amount, (int)rev, itemdb_jname(vsd->vend_loot)); //No Tax for Items/Cash [Easycore]
 			} else
 				sprintf(temp, msg_txt(sd, 265), sd->status.name);
 			clif_displaymessage(vsd->fd, temp);
@@ -369,36 +358,33 @@ void vending_purchasereq(struct map_session_data* sd, int aid, int uid, const ui
 		if (battle_config.ex_vending_info) { // Extended Vending system [Lilith]
 			char temp[256];
 			double frev = ((double)vsd->vending[vend_list[i]].value * (double)amount);
-			sprintf(temp, msg_txt(sd,1598), sd->status.name, (int)frev, vsd->vend_loot?itemdb_ename(vsd->vend_loot):"Zeny");
+			sprintf(temp, msg_txt(sd,1598), sd->status.name, (int)frev, vsd->vend_loot?itemdb_jname(vsd->vend_loot):"Zeny");
 			clif_displaymessage(vsd->fd, temp);
 		}
 		if (battle_config.ex_vending_report && pc_readglobalreg(vsd, add_str("NOVREPORT")) == 0 ) { // Vending Report MailBox [Easycore]
-			const char *body;
+			const char *sender, *title, *body;
 			struct mail_message msg;
 			char message[1000];
 			mailprofit += vsd->vending[vend_list[i]].value *amount;
 			memset(&msg, 0, sizeof(struct mail_message));
 			msg.dest_id = vsd->status.char_id;
-			safestrncpy(msg.send_name, msg_txt(vsd,1606), NAME_LENGTH);
-			safestrncpy(msg.title, msg_txt(vsd,1607), MAIL_TITLE_LENGTH);
-			if (i == 0) {
-				sprintf(message, msg_txt(vsd,1599), sd->status.name);
-				sprintf(message + strlen(message), "\r\n");
-			}
-			// Old mail box is too shorter [Easycore]
-#if PACKETVER >= 20150513
+			sender = "Server";
+			safestrncpy(msg.send_name, sender, NAME_LENGTH);
+			title = "Vending Report";
+			safestrncpy(msg.title, title, MAIL_TITLE_LENGTH);
+			if (i == 0)
+				sprintf(message, "[%s] has bought in your store: \r\n", sd->status.name);
+			#if PACKETVER >= 20150513 // Old mail box is too shorter [Easycore]
 			if (i >= 0 && strlen(message)<180)
-				sprintf(message + strlen(message), msg_txt(vsd,1600), item_sold->ename.c_str(), amount);
+				sprintf(message + strlen(message), "   - %s x %d ea\r\n", item_name, amount);
 			else if (strlen(message)<200)
-				sprintf(message + strlen(message), msg_txt(vsd,1601));
-			sprintf(message + strlen(message), "\r\n");
-#endif
+				sprintf(message + strlen(message), "......and more\r\n");
+			#endif
 			if (i == count-1) {
-				sprintf(message + strlen(message), "\r\n");
 				if (vsd->vend_loot == ITEMID_ZENY)
-					sprintf(message + strlen(message), msg_txt(vsd,1602) ,GetComma( (mailprofit -= mailprofit * (int)(battle_config.vending_tax / 10000.)) ));
+					sprintf(message + strlen(message), "Total profit: %s x %d", "Zeny" ,(mailprofit -= mailprofit * (int)(battle_config.vending_tax / 10000.)));
 				else
-					sprintf(message + strlen(message), msg_txt(vsd,1603) ,itemdb_ename(vsd->vend_loot) ,mailprofit); //No Tax for Items/Cash [Easycore]
+					sprintf(message + strlen(message), "Total profit: %s x %d",itemdb_jname(vsd->vend_loot) ,mailprofit); //No Tax for Items/Cash [Easycore]
 			}
 			body = message;
 			safestrncpy(msg.body, body, MAIL_BODY_LENGTH);
@@ -407,6 +393,7 @@ void vending_purchasereq(struct map_session_data* sd, int aid, int uid, const ui
 			msg.timestamp = time(NULL);
 			if (i==count-1)
 				intif_Mail_send(0, &msg);
+
 		}
 	}
 
@@ -509,11 +496,8 @@ int8 vending_openvending(struct map_session_data* sd, const char* message, const
 		i++; // item successfully added
 	}
 
-	if (i != j) {
-		clif_displaymessage(sd->fd, msg_txt(sd, 266)); //"Some of your items cannot be vended and were removed from the shop."
-		clif_skill_fail(sd, MC_VENDING, USESKILL_FAIL_LEVEL, 0); // custom reply packet
-		return 5;
-	}
+	if( i != j )
+		clif_displaymessage (sd->fd, msg_txt(sd,266)); //"Some of your items cannot be vended and were removed from the shop."
 
 	if( i == 0 ) { // no valid item found
 		clif_skill_fail(sd, MC_VENDING, USESKILL_FAIL_LEVEL, 0); // custom reply packet
@@ -560,7 +544,7 @@ int8 vending_openvending(struct map_session_data* sd, const char* message, const
  * @param nameid : item id
  * @return 0:not selling it, 1: yes
  */
-bool vending_search(struct map_session_data* sd, t_itemid nameid)
+bool vending_search(struct map_session_data* sd, unsigned short nameid)
 {
 	int i;
 
@@ -568,7 +552,7 @@ bool vending_search(struct map_session_data* sd, t_itemid nameid)
 		return false;
 	}
 
-	ARR_FIND( 0, sd->vend_num, i, sd->cart.u.items_cart[sd->vending[i].index].nameid == nameid );
+	ARR_FIND( 0, sd->vend_num, i, sd->cart.u.items_cart[sd->vending[i].index].nameid == (short)nameid );
 	if( i == sd->vend_num ) { // not found
 		return false;
 	}
@@ -592,7 +576,7 @@ bool vending_searchall(struct map_session_data* sd, const struct s_search_store_
 		return true;
 
 	for( idx = 0; idx < s->item_count; idx++ ) {
-		ARR_FIND( 0, sd->vend_num, i, sd->cart.u.items_cart[sd->vending[i].index].nameid == s->itemlist[idx].itemId );
+		ARR_FIND( 0, sd->vend_num, i, sd->cart.u.items_cart[sd->vending[i].index].nameid == s->itemlist[idx] );
 		if( i == sd->vend_num ) { // not found
 			continue;
 		}
@@ -610,10 +594,10 @@ bool vending_searchall(struct map_session_data* sd, const struct s_search_store_
 			if( itemdb_isspecial(it->card[0]) ) { // something, that is not a carded
 				continue;
 			}
-			slot = itemdb_slots(it->nameid);
+			slot = itemdb_slot(it->nameid);
 
 			for( c = 0; c < slot && it->card[c]; c ++ ) {
-				ARR_FIND( 0, s->card_count, cidx, s->cardlist[cidx].itemId == it->card[c] );
+				ARR_FIND( 0, s->card_count, cidx, s->cardlist[cidx] == it->card[c] );
 				if( cidx != s->card_count ) { // found
 					break;
 				}
@@ -624,26 +608,9 @@ bool vending_searchall(struct map_session_data* sd, const struct s_search_store_
 			}
 		}
 
-		// Check if the result set is full
-		if( s->search_sd->searchstore.items.size() >= (unsigned int)battle_config.searchstore_maxresults ){
+		if( !searchstore_result(s->search_sd, sd->vender_id, sd->status.account_id, sd->message, it->nameid, sd->vending[i].amount, sd->vending[i].value, it->card, it->refine) ) { // result set full
 			return false;
 		}
-
-		std::shared_ptr<s_search_store_info_item> ssitem = std::make_shared<s_search_store_info_item>();
-
-		ssitem->store_id = sd->vender_id;
-		ssitem->account_id = sd->status.account_id;
-		safestrncpy( ssitem->store_name, sd->message, sizeof( ssitem->store_name ) );
-		ssitem->nameid = it->nameid;
-		ssitem->amount = sd->vending[i].amount;
-		ssitem->price = sd->vending[i].value;
-		for( int j = 0; j < MAX_SLOTS; j++ ){
-			ssitem->card[j] = it->card[j];
-		}
-		ssitem->refine = it->refine;
-		ssitem->enchantgrade = it->enchantgrade;
-
-		s->search_sd->searchstore.items.push_back( ssitem );
 	}
 
 	return true;
@@ -706,9 +673,9 @@ void vending_reopen( struct map_session_data* sd )
 				skill_sit(sd, 1);
 				clif_sitting(&sd->bl);
 			}
-
 			// Extended Vending system [Lilith]
 			sd->vend_loot = at->vend_loot;
+
 			// Immediate save
 			chrif_save(sd, CSAVE_AUTOTRADE);
 
@@ -767,7 +734,7 @@ void do_init_vending_autotrade(void)
 				Sql_GetData(mmysql_handle, 5, &data, NULL); at->dir = atoi(data);
 				Sql_GetData(mmysql_handle, 6, &data, NULL); at->head_dir = atoi(data);
 				Sql_GetData(mmysql_handle, 7, &data, NULL); at->sit = atoi(data);
-				Sql_GetData(mmysql_handle, 8, &data, NULL); at->vend_loot = atoi(data);// Extended Vending system [Lilith]
+				Sql_GetData(mmysql_handle, 8, &data, NULL); at->vend_loot = atoi(data);		// Extended Vending system [Lilith]
 				at->count = 0;
 
 				if (battle_config.feature_autotrade_direction >= 0)
@@ -776,6 +743,7 @@ void do_init_vending_autotrade(void)
 					at->head_dir = battle_config.feature_autotrade_head_direction;
 				if (battle_config.feature_autotrade_sit >= 0)
 					at->sit = battle_config.feature_autotrade_sit;
+
 				// Extended Vending system [Lilith]
 				if (!battle_config.extended_vending)
 					at->vend_loot = 0;
