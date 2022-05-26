@@ -1,0 +1,285 @@
+//=============================PEDRODKS - LUMINUS=============================
+//=             __      __                    __________   ___________
+//=            |  |    |  |     /|    |\     |   ____   | |  ______  /  
+//=            |  |    |  |    / |____| \    |  |    |  | | |     / /
+//=            |  |____|  |   /          \   |  |    |  | | |    / /
+//=            | UNIVERSE |  /  /\____/\  \  |  |____|  | | |__ / /
+//=            |__________| /_ /        \__\ |__________| |______/
+//===================================Autoria==================================
+//= PEDRODKS CONHECIDO COMO LUMINUS
+//= Criador do UniverseMOD
+//= WhatsAPP: 75983719402
+//===================================Licença==================================
+//= Todos os direitos reservados para Pedrodks, criador do UniverseMOD
+//= Qualquer venda ou utilização sem os devidos direitos, lhe deixará sujeito
+//= A responder legalmente por uso indevido de material não autorizado.
+//===================================Versão===================================
+//= 1.0 criado npc inicial
+//============================================================================
+/*
+CENTRAL DE MISSÕES:
+
+	1. Pegar missões diárias. (feito)
+	2. Recompensa das missões. (falta adicionar o algoritmo de recompensas e também oque remove a função)
+	3. Usar SQL para verificar as missões. (falta a parte do comando @centralm para identificar as que estão completas)
+	
+	estrutura da sql missões
+		caça
+		id
+		mobid
+		texto
+		pontos
+		
+		matar player
+		id
+		mapa
+		texto
+		pontos
+		
+		dropar item
+		id
+		item id
+		texto
+		pontos
+	
+*/
+prontera,150,154,3	script	missoes	Itachi,{
+	
+	mes .npc$;
+	mes "Seu saldo de pontos atualmente é de "+#MISSIONPOINTS+".";
+	mes "deseja trocar seus pontos?";
+	switch(select("Trocar Pontos","Informações","Nenhum"))
+	{
+		case 1:
+			next;
+			end;
+			
+		case 2:
+			next;
+			end;
+			
+		case 3:
+			next;
+			mes .npc$;
+			mes "Estarei aqui caso precise!";
+			close;
+			end;
+	}
+
+//Selecionador de missões de acordo a configuração
+L_Mission:
+	switch(.mission_type)
+	{
+		case 1:
+		goto L_01;
+		break;
+		
+		case 2:
+		goto L_02;
+		break;
+		
+		case 3:
+		goto L_03;
+		break;
+		
+		case 4:
+		goto L_04;
+		break;
+		
+		case 5:
+		goto L_05;
+		break;
+		
+		case 6:
+		goto L_06;
+		break;
+		
+		case 7:
+		goto L_07;
+		break;
+	}
+end;
+
+L_01:
+	set @mobid,0;
+	set @texto$,"";
+	set @pontos,0;
+	
+	query_sql("SELECT `id` FROM `sistema_missao_caça` order by `id` desc limit 0,1",@id);
+	set @mission_id,rand(1, @id);
+	query_sql("SELECT `mobid`,`texto`,`pontos` FROM `sistema_missao_caça` WHERE `id`="+@mission_id+"",@mobid,@texto$,@pontos);
+	if(@mobid <= 0)
+	{
+		dispbottom("[Central de Missões]: Não foi possível designar sua missão!");
+		announce("[Central de Missões]: Não foi possível designar sua missão!", bc_self, 0xFF3399);
+	}
+	else
+	{
+		if(.mission_func == 0)
+			query_sql("UPDATE `sistema_missao` SET `account_id` = '"+getcharid(3)+"', `char_id` = '"+getcharid(0)+"', `func` = '"+.mission_func+"', `tipo_missao` = '"+.mission_type+"', `id_mission_c` = '"+@mission_id+"',  `pontos` = '"+@pontos+"' WHERE `account_id` = '"+getcharid(3)+"'");
+		else
+			query_sql("UPDATE `sistema_missao` SET `account_id` = '"+getcharid(3)+"', `char_id` = '"+getcharid(0)+"', `func` = '"+.mission_func+"', `tipo_missao` = '"+.mission_type+"', `id_mission_c` = '"+@mission_id+"', `pontos` = '"+@pontos+"' WHERE `char_id` = '"+getcharid(0)+"'");
+		dispbottom(sprintf(@texto$,strmobinfo(1,@mobid),@pontos,.messagec$));
+		announce(sprintf(@texto$,strmobinfo(1,@mobid),@pontos,.messagec$), bc_self, 0xFF3399);
+	}
+end;
+
+L_02:
+end;
+
+L_03:
+end;
+
+L_04:
+end;
+
+L_05:
+end;
+
+L_06:
+end;
+
+L_07:
+end;
+
+OnStart:
+OnMinute00:
+	addrid(0, 0);
+	if(.mission_func == 0)
+	{
+		query_sql("SELECT `account_id` FROM `sistema_missao` WHERE `sistema_missao`.`account_id` = '"+getcharid(3)+"'",@account_id);
+		if(@account_id <= 0)
+		{
+			query_sql("INSERT INTO `sistema_missao` (`account_id`, `char_id`, `func`, `tipo_missao`, `id_mission_a`, `id_mission_c`, `id_mission_i`, `pontos`) VALUES ('"+getcharid(3)+"', '"+getcharid(0)+"', '0', '0', '0', '0', '0', '0')");
+		}
+	}
+	else
+	{
+		query_sql("SELECT `char_id` FROM `sistema_missao` WHERE `sistema_missao`.`account_id` = '"+getcharid(0)+"'",@char_id);
+		if(@char_id <= 0)
+		{
+			query_sql("INSERT INTO `sistema_missao` (`account_id`, `char_id`, `func`, `tipo_missao`, `id_mission_a`, `id_mission_c`, `id_mission_i`, `pontos`) VALUES ('"+getcharid(3)+"', '"+getcharid(0)+"', '0', '0', '0', '0', '0', '0')");
+		}
+	}
+	goto L_Mission;
+	detachrid;
+end;
+
+//Comando de ADM
+OnAtcommandADM:
+	if(getgroupid() == 99)
+	{
+		mes .npc$;
+		mes "Selecione uma opção:";
+		switch(select("Limpar tabela mission","Limpar tabela caça","Iniciar evento"))
+		{
+			case 1:
+				next;
+				query_sql("TRUNCATE `sistema_missao`");
+				close;
+				end;
+				
+			case 2:
+				next;
+				query_sql("TRUNCATE `sistema_missao_caça`");
+				close;
+				end;
+				
+			case 3:
+				next;
+				donpcevent strnpcinfo(3)+"::OnStart";
+				close;
+				end;
+		}
+	}
+end;
+
+//Comando de Jogador
+OnAtcommandPlayer:
+	if(.mission_func == 0)
+	{
+		query_sql("SELECT `id_mission_a`,`id_mission_c`,`id_mission_i` FROM `sistema_missao` WHERE `account_id`="+getcharid(3)+"",@mission_id_a,@mission_id_c,@mission_id_i);
+		setarray @missions_id[0],@mission_id_a,@mission_id_c,@mission_id_i;
+		for(@i = 0; @i < 3; @i++)
+		{
+			if(@i == 0 && @missions_id[@i] > 0)
+			{
+				query_sql("SELECT `texto`,`pontos` FROM `sistema_missao_assasin` WHERE `id`="+@missions_id[@i]+"",@texto$,@pontos);
+				dispbottom(sprintf(@texto$,@pontos,.messagec$));
+				announce(sprintf(@texto$,@pontos,.messagec$), bc_self, 0xFF3399);
+			}
+			else if(@i == 1 && @missions_id[@i] > 0)
+			{
+				query_sql("SELECT `mobid`,`texto`,`pontos` FROM `sistema_missao_caça` WHERE `id`="+@missions_id[@i]+"",@mobid,@texto$,@pontos);
+				dispbottom(sprintf(@texto$,strmobinfo(1,@mobid),@pontos,.messagec$));
+				announce(sprintf(@texto$,strmobinfo(1,@mobid),@pontos,.messagec$), bc_self, 0xFF3399);
+			}
+			else if(@i == 2 && @missions_id[@i] > 0)
+			{
+				query_sql("SELECT `itemid`,`texto`,`pontos` FROM `sistema_missao_item` WHERE `id`="+@missions_id[@i]+"",@itemid,@texto$,@pontos);
+				dispbottom(sprintf(@texto$,getiteminfo(@itemid, 2),@pontos,.messagec$));
+				announce(sprintf(@texto$,getiteminfo(@itemid, 2),@pontos,.messagec$), bc_self, 0xFF3399);
+			}
+			else if(@i == 2 && @missions_id[0] <= 0 && @missions_id[1] <= 0 && @missions_id[2] <= 0)
+			{
+				dispbottom "Nenhuma missão foi encontrada! Reporte a administração caso tenha dúvidas!";
+				announce "Nenhuma missão foi encontrada! Reporte a administração caso tenha dúvidas!", bc_self, 0xFF0000;
+			}
+		}
+	}
+	else
+	{
+		query_sql("SELECT `id_mission_a`,`id_mission_c`,`id_mission_i` FROM `sistema_missao` WHERE `char_id`="+getcharid(0)+"",@mission_id_a,@mission_id_c,@mission_id_i);
+		setarray @missions_id[0],@mission_id_a,@mission_id_c,@mission_id_i;
+		for(@i = 0; @i < 3; @i++)
+		{
+			if(@i == 0 && @missions_id[@i] > 0)
+			{
+				query_sql("SELECT `texto`,`pontos` FROM `sistema_missao_assasin` WHERE `id`="+@missions_id[@i]+"",@texto$,@pontos);
+				dispbottom(sprintf(@texto$,@pontos,.messagec$));
+			}
+			else if(@i == 1 && @missions_id[@i] > 0)
+			{
+				query_sql("SELECT `mobid`,`texto`,`pontos` FROM `sistema_missao_caça` WHERE `id`="+@missions_id[@i]+"",@mobid,@texto$,@pontos);
+				dispbottom(sprintf(@texto$,strmobinfo(1,@mobid),@pontos,.messagec$));
+			}
+			else if(@i == 2 && @missions_id[@i] > 0)
+			{
+				query_sql("SELECT `itemid`,`texto`,`pontos` FROM `sistema_missao_item` WHERE `id`="+@missions_id[@i]+"",@itemid,@texto$,@pontos);
+				dispbottom(sprintf(@texto$,getiteminfo(@itemid, 2),@pontos,.messagec$));
+			}
+			else if(@i == 2 && @missions_id[0] <= 0 && @missions_id[1] <= 0 && @missions_id[2] <= 0)
+			{
+				dispbottom "Nenhuma missão foi encontrada! Reporte a administração caso tenha dúvidas!";
+			}
+		}
+	}
+end;
+
+OnInit:
+	//Nome do NPC.
+	set .npc$,"[Missões]";
+	
+	//Vínculo da Missão | 0 - Vinculado a Conta | 1 - Vinculado ao Personagem.
+	set .mission_func,0;
+	
+	//Variavéis dos pontos de missões
+	//Não mecher!
+	setarray .npcpoint$[0],"#MISSIONPOINTS","missionpoints";
+								
+	//Tipo da Missão | 1 - Caça | 2 - Assasinato | 4 - Dropar algum item.
+	//Sorteia aleatóriamente um tipo de missão definida para o jogador que estiver online.
+	//Somente Caça defina 1, se quiser caça e dropar item 1+4 = 5, assasinato e caça 1+2 = 3, todas 1+2+4 = 7.
+	set .mission_type,1;
+	
+	//Mensagem que ensina como ver as missões
+	set .messagec$,"Utilize @centralm para checar sua missão!";
+	
+	//Comando de ADM
+	bindatcmd "gmcentralm",strnpcinfo(3)+"::OnAtcommandADM";
+	
+	//Comando de Player
+	bindatcmd "centralm",strnpcinfo(3)+"::OnAtcommandPlayer";
+end;
+
+}
