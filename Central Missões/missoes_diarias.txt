@@ -23,25 +23,6 @@ CENTRAL DE MISSÕES:
 	2. Recompensa das missões. (falta adicionar o algoritmo de recompensas e também oque remove a função)
 	3. Usar SQL para verificar as missões. (falta a parte do comando @centralm para identificar as que estão completas)
 	
-	estrutura da sql missões
-		caça
-		id
-		mobid
-		texto
-		pontos
-		
-		matar player
-		id
-		mapa
-		texto
-		pontos
-		
-		dropar item
-		id
-		item id
-		texto
-		pontos
-	
 */
 prontera,150,154,3	script	missoes	Itachi,{
 	
@@ -66,7 +47,7 @@ prontera,150,154,3	script	missoes	Itachi,{
 			end;
 	}
 
-//Selecionador de missões de acordo a configuração
+//Disparador de missões de acordo a configuração
 L_Mission:
 	switch(.mission_type)
 	{
@@ -145,6 +126,7 @@ end;
 OnStart:
 OnMinute00:
 	addrid(0, 0);
+	query_sql("UPDATE `sistema_missao` SET `tipo_missao` = '"+.mission_type+"', `id_mission_a` = '0', `id_mission_c` = '0', `id_mission_i` = '0'");
 	if(.mission_func == 0)
 	{
 		query_sql("SELECT `account_id` FROM `sistema_missao` WHERE `sistema_missao`.`account_id` = '"+getcharid(3)+"'",@account_id);
@@ -166,26 +148,131 @@ OnMinute00:
 end;
 
 //Comando de ADM
+L_GM:
 OnAtcommandADM:
 	if(getgroupid() == 99)
 	{
 		mes .npc$;
 		mes "Selecione uma opção:";
-		switch(select("Limpar tabela mission","Limpar tabela caça","Iniciar evento"))
+		switch(select("Adicionar Missões","Limpar Tabela Geral","Limpar Tabela Assasin","Limpar Tabela Caça","Limpar Tabela Item","Iniciar Evento"))
 		{
 			case 1:
+				next;
+				mes .npc$;
+				mes "Escolha qual missão deseja adicionar:";
+				switch(select("Assasinato","Caça","Item","Voltar"))
+				{
+					case 1:
+						next;
+						mes .npc$;
+						mes "Você só poderá alterar os pontos de recompensa que um jogador deverá ganhar.";
+						mes "Digite um novo valor:";
+						input @valor;
+						next;
+						if(@valor < 0 || @valor > 10000)
+						{
+							mes .npc$;
+							mes "Você digitou um valor inválido, digite um número entre 1 e 10000.";
+							next;
+							goto L_GM;
+						}
+						query_sql("UPDATE `sistema_missao_assasin` SET `pontos` = '"+@valor+"'");
+						mes .npc$;
+						mes "Dados inseridos com sucesso!";
+						close;
+						end;
+						
+					case 2:
+						next;
+						mes .npc$;
+						mes "Digite o id do monstro que o jogador deverá matar.";
+						mes "Coloque um valor válido ou poderá ocasionar bug's:";
+						input @mobid;
+						next;
+						mes .npc$;
+						mes "Digite o texto que irei mostrar ao jogador, utilizando o modelo abaixo:";
+						mes "Você deve matar o monstro %s para ganhar %d pontos. %s";
+						mes "Você deve colocar o %s que será o nome do monstro, %d quantidade de pontos e %s no final.";
+						input @texto$;
+						next;
+						mes .npc$;
+						mes "Coloque agora a quantidade de pontos que o jogador irá ganhar ao matar o monstro:";
+						input @pontos;
+						next;
+						if(@pontos < 0 || @pontos > 10000)
+						{
+							mes .npc$;
+							mes "Você digitou um valor inválido, digite um número entre 0 e 10000.";
+							next;
+							goto L_GM;
+						}
+						query_sql("INSERT INTO `sistema_missao_caça` (`mobid`, `texto`, `pontos`) VALUES ('"+@mobid+"', '"+.messagesql$+""+@texto$+"', '"+@pontos+"')");
+						mes .npc$;
+						mes "Dados inseridos com sucesso!";
+						close;
+						end;
+						
+						
+					case 3:
+						next;
+						mes .npc$;
+						mes "Digite o id do item que o jogador deverá adquirir.";
+						mes "Coloque um valor válido ou poderá ocasionar bug's:";
+						input @itemid;
+						next;
+						mes .npc$;
+						mes "Digite o texto que irei mostrar ao jogador, utilizando o modelo abaixo:";
+						mes "Você deve adquirir o ITEM [%s ID: %d] para ganhar %d pontos. %s";
+						mes "Você deve colocar o %s que será o nome do item, o %d id do item, %d quantidade de pontos e %s no final.";
+						input @texto$;
+						next;
+						mes .npc$;
+						mes "Coloque agora a quantidade de pontos que o jogador irá ganhar ao matar o monstro:";
+						input @pontos;
+						next;
+						if(@pontos < 0 || @pontos > 10000)
+						{
+							mes .npc$;
+							mes "Você digitou um valor inválido, digite um número entre 0 e 10000.";
+							next;
+							goto L_GM;
+						}
+						query_sql("INSERT INTO `sistema_missao_item` (`itemid`, `texto`, `pontos`) VALUES ('"+@itemid+"', '"+.messagesql$+""+@texto$+"', '"+@pontos+"')");
+						mes .npc$;
+						mes "Dados inseridos com sucesso!";
+						close;
+						end;
+						
+					case 4:
+						next;
+						goto L_GM;
+				}
+				
+			case 2:
 				next;
 				query_sql("TRUNCATE `sistema_missao`");
 				close;
 				end;
+			
+			case 3:
+				next;
+				query_sql("UPDATE `sistema_missao_assasin` SET `pontos` = '0'");
+				close;
+				end;
 				
-			case 2:
+			case 4:
 				next;
 				query_sql("TRUNCATE `sistema_missao_caça`");
 				close;
 				end;
 				
-			case 3:
+			case 5:
+				next;
+				query_sql("TRUNCATE `sistema_missao_item`");
+				close;
+				end;
+				
+			case 6:
 				next;
 				donpcevent strnpcinfo(3)+"::OnStart";
 				close;
@@ -200,30 +287,31 @@ OnAtcommandPlayer:
 	{
 		query_sql("SELECT `id_mission_a`,`id_mission_c`,`id_mission_i` FROM `sistema_missao` WHERE `account_id`="+getcharid(3)+"",@mission_id_a,@mission_id_c,@mission_id_i);
 		setarray @missions_id[0],@mission_id_a,@mission_id_c,@mission_id_i;
+		mes .npc$;
 		for(@i = 0; @i < 3; @i++)
 		{
 			if(@i == 0 && @missions_id[@i] > 0)
 			{
-				query_sql("SELECT `texto`,`pontos` FROM `sistema_missao_assasin` WHERE `id`="+@missions_id[@i]+"",@texto$,@pontos);
-				dispbottom(sprintf(@texto$,@pontos,.messagec$));
-				announce(sprintf(@texto$,@pontos,.messagec$), bc_self, 0xFF3399);
+				query_sql("SELECT `nome`,`texto`,`pontos` FROM `sistema_missao_assasin` WHERE `id`="+@missions_id[@i]+"",@nome$,@texto$,@pontos);
+				dispbottom(sprintf(@texto$,@nome$,@pontos,""));
+				mes(sprintf(@texto$,@nome$,@pontos,""));
 			}
 			else if(@i == 1 && @missions_id[@i] > 0)
 			{
 				query_sql("SELECT `mobid`,`texto`,`pontos` FROM `sistema_missao_caça` WHERE `id`="+@missions_id[@i]+"",@mobid,@texto$,@pontos);
-				dispbottom(sprintf(@texto$,strmobinfo(1,@mobid),@pontos,.messagec$));
-				announce(sprintf(@texto$,strmobinfo(1,@mobid),@pontos,.messagec$), bc_self, 0xFF3399);
+				dispbottom(sprintf(@texto$,strmobinfo(1,@mobid),@pontos,""));
+				mes(sprintf(@texto$,strmobinfo(1,@mobid),@pontos,""));
 			}
 			else if(@i == 2 && @missions_id[@i] > 0)
 			{
 				query_sql("SELECT `itemid`,`texto`,`pontos` FROM `sistema_missao_item` WHERE `id`="+@missions_id[@i]+"",@itemid,@texto$,@pontos);
-				dispbottom(sprintf(@texto$,getiteminfo(@itemid, 2),@pontos,.messagec$));
-				announce(sprintf(@texto$,getiteminfo(@itemid, 2),@pontos,.messagec$), bc_self, 0xFF3399);
+				dispbottom(sprintf(@texto$,getitemname(@itemid),@itemid,@pontos,""));
+				mes(sprintf(@texto$,getitemname(@itemid),@itemid,@pontos,""));
 			}
 			else if(@i == 2 && @missions_id[0] <= 0 && @missions_id[1] <= 0 && @missions_id[2] <= 0)
 			{
 				dispbottom "Nenhuma missão foi encontrada! Reporte a administração caso tenha dúvidas!";
-				announce "Nenhuma missão foi encontrada! Reporte a administração caso tenha dúvidas!", bc_self, 0xFF0000;
+				mes "Nenhuma missão foi encontrada! Reporte a administração caso tenha dúvidas!";
 			}
 		}
 	}
@@ -231,29 +319,35 @@ OnAtcommandPlayer:
 	{
 		query_sql("SELECT `id_mission_a`,`id_mission_c`,`id_mission_i` FROM `sistema_missao` WHERE `char_id`="+getcharid(0)+"",@mission_id_a,@mission_id_c,@mission_id_i);
 		setarray @missions_id[0],@mission_id_a,@mission_id_c,@mission_id_i;
+		mes .npc$;
 		for(@i = 0; @i < 3; @i++)
 		{
 			if(@i == 0 && @missions_id[@i] > 0)
 			{
-				query_sql("SELECT `texto`,`pontos` FROM `sistema_missao_assasin` WHERE `id`="+@missions_id[@i]+"",@texto$,@pontos);
-				dispbottom(sprintf(@texto$,@pontos,.messagec$));
+				query_sql("SELECT `nome`,`texto`,`pontos` FROM `sistema_missao_assasin` WHERE `id`="+@missions_id[@i]+"",@nome$,@texto$,@pontos);
+				dispbottom(sprintf(@texto$,@nome$,@pontos,""));
+				mes(sprintf(@texto$,@nome$,@pontos,""));
 			}
 			else if(@i == 1 && @missions_id[@i] > 0)
 			{
 				query_sql("SELECT `mobid`,`texto`,`pontos` FROM `sistema_missao_caça` WHERE `id`="+@missions_id[@i]+"",@mobid,@texto$,@pontos);
-				dispbottom(sprintf(@texto$,strmobinfo(1,@mobid),@pontos,.messagec$));
+				dispbottom(sprintf(@texto$,strmobinfo(1,@mobid),@pontos,""));
+				mes(sprintf(@texto$,strmobinfo(1,@mobid),@pontos,""));
 			}
 			else if(@i == 2 && @missions_id[@i] > 0)
 			{
 				query_sql("SELECT `itemid`,`texto`,`pontos` FROM `sistema_missao_item` WHERE `id`="+@missions_id[@i]+"",@itemid,@texto$,@pontos);
-				dispbottom(sprintf(@texto$,getiteminfo(@itemid, 2),@pontos,.messagec$));
+				dispbottom(sprintf(@texto$,getitemname(@itemid),@itemid,@pontos,""));
+				mes(sprintf(@texto$,getitemname(@itemid),@itemid,@pontos,""));
 			}
 			else if(@i == 2 && @missions_id[0] <= 0 && @missions_id[1] <= 0 && @missions_id[2] <= 0)
 			{
 				dispbottom "Nenhuma missão foi encontrada! Reporte a administração caso tenha dúvidas!";
+				mes "Nenhuma missão foi encontrada! Reporte a administração caso tenha dúvidas!";
 			}
 		}
 	}
+	close;
 end;
 
 OnInit:
@@ -274,6 +368,7 @@ OnInit:
 	
 	//Mensagem que ensina como ver as missões
 	set .messagec$,"Utilize @centralm para checar sua missão!";
+	set .messagesql$,"[Central de Missões]: ";
 	
 	//Comando de ADM
 	bindatcmd "gmcentralm",strnpcinfo(3)+"::OnAtcommandADM";
