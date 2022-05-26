@@ -12109,17 +12109,17 @@ int skill_castend_pos2(struct block_list* src, int x, int y, uint16 skill_id, ui
 		}
 	// Fall through
 	case WZ_METEOR: {
-			int area = skill_get_splash(skill_id, skill_lv);
-			short tmpx = 0, tmpy = 0;
+		int area = skill_get_splash(skill_id, skill_lv);
+		short sx = 0, sy = 0;
 
-			for (i = 1; i <= skill_get_time(skill_id, skill_lv)/skill_get_unit_interval(skill_id); i++) {
-				// Creates a random Cell in the Splash Area
-				tmpx = x - area + rnd()%(area * 2 + 1);
-				tmpy = y - area + rnd()%(area * 2 + 1);
-				skill_unitsetting(src, skill_id, skill_lv, tmpx, tmpy, flag+i*skill_get_unit_interval(skill_id));
-			}
+		for (i = 1; i <= skill_get_time(skill_id, skill_lv) / skill_get_unit_interval(skill_id); i++) {
+			// Creates a random Cell in the Splash Area
+			sx = x - area + rnd() % (area * 2 + 2 - 1);
+			sy = y - area + rnd() % (area * 2 + 2 - 1);
+			skill_unitsetting(src, skill_id, skill_lv, sx, sy, flag + i * skill_get_unit_interval(skill_id));
 		}
-		break;
+	}
+	 break;
 
 	case AL_WARP:
 		if(sd)
