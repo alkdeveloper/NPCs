@@ -8555,6 +8555,18 @@ static const struct _battle_data {
 	{ "item_zeny",							&battle_config.item_zeny,						0,		0,		MAX_ITEMID,		},
 	{ "item_cash",							&battle_config.item_cash,						0,		0,		MAX_ITEMID,		},
 
+	// Sistema de anúncio e log de Cartas MvP e Mini-Boss [Bad]
+	// Revisado nesse Emulador por Pedrodks/Luminus 26/05/2022
+	{ "announcement_and_log_system",        &battle_config.announcement_and_log_system,     1,      0,      1, },
+	{ "mvp_card_announce_system",           &battle_config.mvp_card_announce_system,        1,      0,      1, },
+	{ "mvp_card_announce",                  &battle_config.mvp_card_announce,               1,      0,      1, },
+	{ "dropped_mvp_card_log",               &battle_config.dropped_mvp_card_log,            1,      0,      1, },
+	{ "set_drop_announce_color",            &battle_config.set_drop_announce_color,         0xFFBB00,      0,INT_MAX, },
+	{ "mini_boss_card_announce_system",     &battle_config.mini_boss_card_announce_system,  1,      0,      1, },
+	{ "mini_boss_card_announce",            &battle_config.mini_boss_card_announce,         1,      0,      1, },
+	{ "dropped_mini_boss_card_log",         &battle_config.dropped_mini_boss_card_log,      1,      0,      1, },
+	{ "set_drop_card_announce_color",       &battle_config.set_drop_card_announce_color,    0xFFBB00,      0,INT_MAX, },
+
 	// [CreativeSD]: Queue System
 #include "queue_battle_config_init.inc"
 

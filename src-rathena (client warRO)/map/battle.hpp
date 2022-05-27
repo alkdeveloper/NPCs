@@ -669,6 +669,18 @@ struct Battle_Config
 	int item_zeny;
 	int item_cash;
 
+	// Sistema de anúncio e log de Cartas MvP e Mini-Boss [Bad]
+	// Revisado nesse Emulador por Pedrodks/Luminus 26/05/2022
+	int announcement_and_log_system;
+	int mvp_card_announce_system;
+	int mvp_card_announce;
+	int dropped_mvp_card_log;
+	int set_drop_announce_color;
+	int mini_boss_card_announce_system;
+	int mini_boss_card_announce;
+	int dropped_mini_boss_card_log;
+	int set_drop_card_announce_color;
+
 	// [CreativeSD]: Qeueue System
 #include "queue_battle_config_struct.inc"
 
