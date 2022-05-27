@@ -47,6 +47,43 @@ prontera,150,154,3	script	missoes	Itachi,{
 			end;
 	}
 
+//Inicio do Sistema de Missões por Hora, tbm via comando @gmcentralm
+OnStart:
+OnMinute00:
+	addrid(0, 0);
+	
+	if(.mission_func == 0)
+	{
+		query_sql("SELECT `account_id` FROM `sistema_missao` WHERE `sistema_missao`.`account_id` = '"+getcharid(3)+"'",@account_id);
+		if(@account_id <= 0)
+		{
+			query_sql("INSERT INTO `sistema_missao` (`account_id`, `char_id`, `func`, `tipo_missao`, `id_mission_a`, `id_mission_c`, `id_mission_i`, `pontos`) VALUES ('"+getcharid(3)+"', '"+getcharid(0)+"', '0', '0', '0', '0', '0', '0')");
+		}
+	}
+	else
+	{
+		query_sql("SELECT `char_id` FROM `sistema_missao` WHERE `sistema_missao`.`account_id` = '"+getcharid(0)+"'",@char_id);
+		if(@char_id <= 0)
+		{
+			query_sql("INSERT INTO `sistema_missao` (`account_id`, `char_id`, `func`, `tipo_missao`, `id_mission_a`, `id_mission_c`, `id_mission_i`, `pontos`) VALUES ('"+getcharid(3)+"', '"+getcharid(0)+"', '0', '0', '0', '0', '0', '0')");
+		}
+	}
+	
+	query_sql("UPDATE `sistema_missao` SET `tipo_missao` = '"+.mission_type+"', `id_mission_a` = '0', `id_mission_c` = '0', `id_mission_i` = '0'");
+	query_sql("TRUNCATE `sistema_missao_assasin`");
+	
+	//algoritmo que seleciona o player online nas missões de assasinato
+	query_sql ("SELECT `name` FROM `char` WHERE `online` = '1'", .nomearray$);
+	
+	for(.@a = 0;.@a < getarraysize(.nomearray$);.@a++)
+	{
+		query_sql("INSERT INTO `sistema_missao_assasin` (`nome`, `texto`, `pontos`) VALUES ('"+.nomearray$[.@a]+"', '"+.messagesql$+""+.messageassasin$+"', '"+.pontosassasin+"')");
+	}
+	
+	goto L_Mission;
+	detachrid;
+end;
+
 //Disparador de missões de acordo a configuração
 L_Mission:
 	switch(.mission_type)
@@ -81,6 +118,7 @@ L_Mission:
 	}
 end;
 
+//Designa missão de Caça
 L_01:
 	set @mobid,0;
 	set @texto$,"";
@@ -105,46 +143,288 @@ L_01:
 	}
 end;
 
+//Designa missão de Assasinato
 L_02:
+	set @alvo$,"";
+	set @texto$,"";
+	set @pontos,0;
+   
+	query_sql("SELECT `id` FROM `sistema_missao_assasin` order by `id` desc limit 0,1",@id);
+	set @mission_id,rand(1, @id);
+	query_sql("SELECT `nome`,`texto`,`pontos` FROM `sistema_missao_assasin` WHERE `id`="+@mission_id+"",@alvo$,@texto$,@pontos);
+
+	if(@alvo$ == strcharinfo(0))
+	{
+		goto L_02;
+	}
+		
+	if(@id <= 0 || getarraysize(.nomearray$) <= 1)
+	{
+		dispbottom("[Central de Missões]: Não foi possível designar sua missão!");
+		announce("[Central de Missões]: Não foi possível designar sua missão!", bc_self, 0xFF3399);
+	}
+	else
+	{	
+		if(.mission_func == 0)
+			query_sql("UPDATE `sistema_missao` SET `account_id` = '"+getcharid(3)+"', `char_id` = '"+getcharid(0)+"', `func` = '"+.mission_func+"', `tipo_missao` = '"+.mission_type+"', `id_mission_a` = '"+@mission_id+"',  `pontos` = '"+@pontos+"' WHERE `account_id` = '"+getcharid(3)+"'");
+		else
+			query_sql("UPDATE `sistema_missao` SET `account_id` = '"+getcharid(3)+"', `char_id` = '"+getcharid(0)+"', `func` = '"+.mission_func+"', `tipo_missao` = '"+.mission_type+"', `id_mission_a` = '"+@mission_id+"', `pontos` = '"+@pontos+"' WHERE `char_id` = '"+getcharid(0)+"'");
+		dispbottom(sprintf(@texto$,@alvo$,@pontos,.messagec$));
+		announce(sprintf(@texto$,@alvo$,@pontos,.messagec$), bc_self, 0xFF3399);
+	}
 end;
 
 L_03:
-end;
-
-L_04:
-end;
-
-L_05:
-end;
-
-L_06:
-end;
-
-L_07:
-end;
-
-OnStart:
-OnMinute00:
-	addrid(0, 0);
-	query_sql("UPDATE `sistema_missao` SET `tipo_missao` = '"+.mission_type+"', `id_mission_a` = '0', `id_mission_c` = '0', `id_mission_i` = '0'");
-	if(.mission_func == 0)
+	set @mobid,0;
+	set @texto$,"";
+	set @pontos,0;
+	
+	query_sql("SELECT `id` FROM `sistema_missao_caça` order by `id` desc limit 0,1",@id);
+	set @mission_id,rand(1, @id);
+	query_sql("SELECT `mobid`,`texto`,`pontos` FROM `sistema_missao_caça` WHERE `id`="+@mission_id+"",@mobid,@texto$,@pontos);
+	if(@mobid <= 0)
 	{
-		query_sql("SELECT `account_id` FROM `sistema_missao` WHERE `sistema_missao`.`account_id` = '"+getcharid(3)+"'",@account_id);
-		if(@account_id <= 0)
-		{
-			query_sql("INSERT INTO `sistema_missao` (`account_id`, `char_id`, `func`, `tipo_missao`, `id_mission_a`, `id_mission_c`, `id_mission_i`, `pontos`) VALUES ('"+getcharid(3)+"', '"+getcharid(0)+"', '0', '0', '0', '0', '0', '0')");
-		}
+		dispbottom("[Central de Missões]: Não foi possível designar sua missão!");
+		announce("[Central de Missões]: Não foi possível designar sua missão!", bc_self, 0xFF3399);
 	}
 	else
 	{
-		query_sql("SELECT `char_id` FROM `sistema_missao` WHERE `sistema_missao`.`account_id` = '"+getcharid(0)+"'",@char_id);
-		if(@char_id <= 0)
-		{
-			query_sql("INSERT INTO `sistema_missao` (`account_id`, `char_id`, `func`, `tipo_missao`, `id_mission_a`, `id_mission_c`, `id_mission_i`, `pontos`) VALUES ('"+getcharid(3)+"', '"+getcharid(0)+"', '0', '0', '0', '0', '0', '0')");
-		}
+		if(.mission_func == 0)
+			query_sql("UPDATE `sistema_missao` SET `account_id` = '"+getcharid(3)+"', `char_id` = '"+getcharid(0)+"', `func` = '"+.mission_func+"', `tipo_missao` = '"+.mission_type+"', `id_mission_c` = '"+@mission_id+"',  `pontos` = '"+@pontos+"' WHERE `account_id` = '"+getcharid(3)+"'");
+		else
+			query_sql("UPDATE `sistema_missao` SET `account_id` = '"+getcharid(3)+"', `char_id` = '"+getcharid(0)+"', `func` = '"+.mission_func+"', `tipo_missao` = '"+.mission_type+"', `id_mission_c` = '"+@mission_id+"', `pontos` = '"+@pontos+"' WHERE `char_id` = '"+getcharid(0)+"'");
+		dispbottom(sprintf(@texto$,strmobinfo(1,@mobid),@pontos,.messagec$));
+		announce(sprintf(@texto$,strmobinfo(1,@mobid),@pontos,.messagec$), bc_self, 0xFF3399);
 	}
-	goto L_Mission;
-	detachrid;
+	
+	set @alvo$,"";
+	set @texto$,"";
+	set @pontos,0;
+   
+	query_sql("SELECT `id` FROM `sistema_missao_assasin` order by `id` desc limit 0,1",@id);
+	set @mission_id,rand(1, @id);
+	query_sql("SELECT `nome`,`texto`,`pontos` FROM `sistema_missao_assasin` WHERE `id`="+@mission_id+"",@alvo$,@texto$,@pontos);
+
+	if(@alvo$ == strcharinfo(0))
+	{
+		goto L_02;
+	}
+		
+	if(@id <= 0 || getarraysize(.nomearray$) <= 1)
+	{
+		dispbottom("[Central de Missões]: Não foi possível designar sua missão!");
+		announce("[Central de Missões]: Não foi possível designar sua missão!", bc_self, 0xFF3399);
+	}
+	else
+	{	
+		if(.mission_func == 0)
+			query_sql("UPDATE `sistema_missao` SET `account_id` = '"+getcharid(3)+"', `char_id` = '"+getcharid(0)+"', `func` = '"+.mission_func+"', `tipo_missao` = '"+.mission_type+"', `id_mission_a` = '"+@mission_id+"',  `pontos` = '"+@pontos+"' WHERE `account_id` = '"+getcharid(3)+"'");
+		else
+			query_sql("UPDATE `sistema_missao` SET `account_id` = '"+getcharid(3)+"', `char_id` = '"+getcharid(0)+"', `func` = '"+.mission_func+"', `tipo_missao` = '"+.mission_type+"', `id_mission_a` = '"+@mission_id+"', `pontos` = '"+@pontos+"' WHERE `char_id` = '"+getcharid(0)+"'");
+		dispbottom(sprintf(@texto$,@alvo$,@pontos,.messagec$));
+		announce(sprintf(@texto$,@alvo$,@pontos,.messagec$), bc_self, 0xFF3399);
+	}
+end;
+
+//Designa missão de Drop de Item
+L_04:
+	set @itemid,0;
+	set @texto$,"";
+	set @pontos,0;
+	
+	query_sql("SELECT `id` FROM `sistema_missao_item` order by `id` desc limit 0,1",@id);
+	set @mission_id,rand(1, @id);
+	query_sql("SELECT `itemid`,`texto`,`pontos` FROM `sistema_missao_item` WHERE `id`="+@mission_id+"",@itemid,@texto$,@pontos);
+	set @itemname$,getitemname(@itemid);
+	if(@id <= 0)
+	{
+		dispbottom("[Central de Missões]: Não foi possível designar sua missão!");
+		announce("[Central de Missões]: Não foi possível designar sua missão!", bc_self, 0xFF3399);
+	}
+	else
+	{
+		if(.mission_func == 0)
+			query_sql("UPDATE `sistema_missao` SET `account_id` = '"+getcharid(3)+"', `char_id` = '"+getcharid(0)+"', `func` = '"+.mission_func+"', `tipo_missao` = '"+.mission_type+"', `id_mission_i` = '"+@mission_id+"',  `pontos` = '"+@pontos+"' WHERE `account_id` = '"+getcharid(3)+"'");
+		else
+			query_sql("UPDATE `sistema_missao` SET `account_id` = '"+getcharid(3)+"', `char_id` = '"+getcharid(0)+"', `func` = '"+.mission_func+"', `tipo_missao` = '"+.mission_type+"', `id_mission_i` = '"+@mission_id+"', `pontos` = '"+@pontos+"' WHERE `char_id` = '"+getcharid(0)+"'");
+		dispbottom(sprintf(@texto$,@itemname$,@itemid,@pontos,.messagec$));
+		announce(sprintf(@texto$,@itemname$,@itemid,@pontos,.messagec$), bc_self, 0xFF3399);
+	}
+end;
+
+L_05:
+	set @mobid,0;
+	set @texto$,"";
+	set @pontos,0;
+	
+	query_sql("SELECT `id` FROM `sistema_missao_caça` order by `id` desc limit 0,1",@id);
+	set @mission_id,rand(1, @id);
+	query_sql("SELECT `mobid`,`texto`,`pontos` FROM `sistema_missao_caça` WHERE `id`="+@mission_id+"",@mobid,@texto$,@pontos);
+	if(@mobid <= 0)
+	{
+		dispbottom("[Central de Missões]: Não foi possível designar sua missão!");
+		announce("[Central de Missões]: Não foi possível designar sua missão!", bc_self, 0xFF3399);
+	}
+	else
+	{
+		if(.mission_func == 0)
+			query_sql("UPDATE `sistema_missao` SET `account_id` = '"+getcharid(3)+"', `char_id` = '"+getcharid(0)+"', `func` = '"+.mission_func+"', `tipo_missao` = '"+.mission_type+"', `id_mission_c` = '"+@mission_id+"',  `pontos` = '"+@pontos+"' WHERE `account_id` = '"+getcharid(3)+"'");
+		else
+			query_sql("UPDATE `sistema_missao` SET `account_id` = '"+getcharid(3)+"', `char_id` = '"+getcharid(0)+"', `func` = '"+.mission_func+"', `tipo_missao` = '"+.mission_type+"', `id_mission_c` = '"+@mission_id+"', `pontos` = '"+@pontos+"' WHERE `char_id` = '"+getcharid(0)+"'");
+		dispbottom(sprintf(@texto$,strmobinfo(1,@mobid),@pontos,.messagec$));
+		announce(sprintf(@texto$,strmobinfo(1,@mobid),@pontos,.messagec$), bc_self, 0xFF3399);
+	}
+	
+	set @itemid,0;
+	set @texto$,"";
+	set @pontos,0;
+	
+	query_sql("SELECT `id` FROM `sistema_missao_item` order by `id` desc limit 0,1",@id);
+	set @mission_id,rand(1, @id);
+	query_sql("SELECT `itemid`,`texto`,`pontos` FROM `sistema_missao_item` WHERE `id`="+@mission_id+"",@itemid,@texto$,@pontos);
+	set @itemname$,getitemname(@itemid);
+	if(@id <= 0)
+	{
+		dispbottom("[Central de Missões]: Não foi possível designar sua missão!");
+		announce("[Central de Missões]: Não foi possível designar sua missão!", bc_self, 0xFF3399);
+	}
+	else
+	{
+		if(.mission_func == 0)
+			query_sql("UPDATE `sistema_missao` SET `account_id` = '"+getcharid(3)+"', `char_id` = '"+getcharid(0)+"', `func` = '"+.mission_func+"', `tipo_missao` = '"+.mission_type+"', `id_mission_i` = '"+@mission_id+"',  `pontos` = '"+@pontos+"' WHERE `account_id` = '"+getcharid(3)+"'");
+		else
+			query_sql("UPDATE `sistema_missao` SET `account_id` = '"+getcharid(3)+"', `char_id` = '"+getcharid(0)+"', `func` = '"+.mission_func+"', `tipo_missao` = '"+.mission_type+"', `id_mission_i` = '"+@mission_id+"', `pontos` = '"+@pontos+"' WHERE `char_id` = '"+getcharid(0)+"'");
+		dispbottom(sprintf(@texto$,@itemname$,@itemid,@pontos,.messagec$));
+		announce(sprintf(@texto$,@itemname$,@itemid,@pontos,.messagec$), bc_self, 0xFF3399);
+	}
+end;
+
+L_06:
+	set @alvo$,"";
+	set @texto$,"";
+	set @pontos,0;
+   
+	query_sql("SELECT `id` FROM `sistema_missao_assasin` order by `id` desc limit 0,1",@id);
+	set @mission_id,rand(1, @id);
+	query_sql("SELECT `nome`,`texto`,`pontos` FROM `sistema_missao_assasin` WHERE `id`="+@mission_id+"",@alvo$,@texto$,@pontos);
+
+	if(@alvo$ == strcharinfo(0))
+	{
+		goto L_02;
+	}
+		
+	if(@id <= 0 || getarraysize(.nomearray$) <= 1)
+	{
+		dispbottom("[Central de Missões]: Não foi possível designar sua missão!");
+		announce("[Central de Missões]: Não foi possível designar sua missão!", bc_self, 0xFF3399);
+	}
+	else
+	{	
+		if(.mission_func == 0)
+			query_sql("UPDATE `sistema_missao` SET `account_id` = '"+getcharid(3)+"', `char_id` = '"+getcharid(0)+"', `func` = '"+.mission_func+"', `tipo_missao` = '"+.mission_type+"', `id_mission_a` = '"+@mission_id+"',  `pontos` = '"+@pontos+"' WHERE `account_id` = '"+getcharid(3)+"'");
+		else
+			query_sql("UPDATE `sistema_missao` SET `account_id` = '"+getcharid(3)+"', `char_id` = '"+getcharid(0)+"', `func` = '"+.mission_func+"', `tipo_missao` = '"+.mission_type+"', `id_mission_a` = '"+@mission_id+"', `pontos` = '"+@pontos+"' WHERE `char_id` = '"+getcharid(0)+"'");
+		dispbottom(sprintf(@texto$,@alvo$,@pontos,.messagec$));
+		announce(sprintf(@texto$,@alvo$,@pontos,.messagec$), bc_self, 0xFF3399);
+	}
+	
+	set @itemid,0;
+	set @texto$,"";
+	set @pontos,0;
+	
+	query_sql("SELECT `id` FROM `sistema_missao_item` order by `id` desc limit 0,1",@id);
+	set @mission_id,rand(1, @id);
+	query_sql("SELECT `itemid`,`texto`,`pontos` FROM `sistema_missao_item` WHERE `id`="+@mission_id+"",@itemid,@texto$,@pontos);
+	set @itemname$,getitemname(@itemid);
+	if(@id <= 0)
+	{
+		dispbottom("[Central de Missões]: Não foi possível designar sua missão!");
+		announce("[Central de Missões]: Não foi possível designar sua missão!", bc_self, 0xFF3399);
+	}
+	else
+	{
+		if(.mission_func == 0)
+			query_sql("UPDATE `sistema_missao` SET `account_id` = '"+getcharid(3)+"', `char_id` = '"+getcharid(0)+"', `func` = '"+.mission_func+"', `tipo_missao` = '"+.mission_type+"', `id_mission_i` = '"+@mission_id+"',  `pontos` = '"+@pontos+"' WHERE `account_id` = '"+getcharid(3)+"'");
+		else
+			query_sql("UPDATE `sistema_missao` SET `account_id` = '"+getcharid(3)+"', `char_id` = '"+getcharid(0)+"', `func` = '"+.mission_func+"', `tipo_missao` = '"+.mission_type+"', `id_mission_i` = '"+@mission_id+"', `pontos` = '"+@pontos+"' WHERE `char_id` = '"+getcharid(0)+"'");
+		dispbottom(sprintf(@texto$,@itemname$,@itemid,@pontos,.messagec$));
+		announce(sprintf(@texto$,@itemname$,@itemid,@pontos,.messagec$), bc_self, 0xFF3399);
+	}
+end;
+
+L_07:
+	set @mobid,0;
+	set @texto$,"";
+	set @pontos,0;
+	
+	query_sql("SELECT `id` FROM `sistema_missao_caça` order by `id` desc limit 0,1",@id);
+	set @mission_id,rand(1, @id);
+	query_sql("SELECT `mobid`,`texto`,`pontos` FROM `sistema_missao_caça` WHERE `id`="+@mission_id+"",@mobid,@texto$,@pontos);
+	if(@mobid <= 0)
+	{
+		dispbottom("[Central de Missões]: Não foi possível designar sua missão!");
+		announce("[Central de Missões]: Não foi possível designar sua missão!", bc_self, 0xFF3399);
+	}
+	else
+	{
+		if(.mission_func == 0)
+			query_sql("UPDATE `sistema_missao` SET `account_id` = '"+getcharid(3)+"', `char_id` = '"+getcharid(0)+"', `func` = '"+.mission_func+"', `tipo_missao` = '"+.mission_type+"', `id_mission_c` = '"+@mission_id+"',  `pontos` = '"+@pontos+"' WHERE `account_id` = '"+getcharid(3)+"'");
+		else
+			query_sql("UPDATE `sistema_missao` SET `account_id` = '"+getcharid(3)+"', `char_id` = '"+getcharid(0)+"', `func` = '"+.mission_func+"', `tipo_missao` = '"+.mission_type+"', `id_mission_c` = '"+@mission_id+"', `pontos` = '"+@pontos+"' WHERE `char_id` = '"+getcharid(0)+"'");
+		dispbottom(sprintf(@texto$,strmobinfo(1,@mobid),@pontos,.messagec$));
+		announce(sprintf(@texto$,strmobinfo(1,@mobid),@pontos,.messagec$), bc_self, 0xFF3399);
+	}
+	
+	set @alvo$,"";
+	set @texto$,"";
+	set @pontos,0;
+   
+	query_sql("SELECT `id` FROM `sistema_missao_assasin` order by `id` desc limit 0,1",@id);
+	set @mission_id,rand(1, @id);
+	query_sql("SELECT `nome`,`texto`,`pontos` FROM `sistema_missao_assasin` WHERE `id`="+@mission_id+"",@alvo$,@texto$,@pontos);
+
+	if(@alvo$ == strcharinfo(0))
+	{
+		goto L_02;
+	}
+		
+	if(@id <= 0 || getarraysize(.nomearray$) <= 1)
+	{
+		dispbottom("[Central de Missões]: Não foi possível designar sua missão!");
+		announce("[Central de Missões]: Não foi possível designar sua missão!", bc_self, 0xFF3399);
+	}
+	else
+	{	
+		if(.mission_func == 0)
+			query_sql("UPDATE `sistema_missao` SET `account_id` = '"+getcharid(3)+"', `char_id` = '"+getcharid(0)+"', `func` = '"+.mission_func+"', `tipo_missao` = '"+.mission_type+"', `id_mission_a` = '"+@mission_id+"',  `pontos` = '"+@pontos+"' WHERE `account_id` = '"+getcharid(3)+"'");
+		else
+			query_sql("UPDATE `sistema_missao` SET `account_id` = '"+getcharid(3)+"', `char_id` = '"+getcharid(0)+"', `func` = '"+.mission_func+"', `tipo_missao` = '"+.mission_type+"', `id_mission_a` = '"+@mission_id+"', `pontos` = '"+@pontos+"' WHERE `char_id` = '"+getcharid(0)+"'");
+		dispbottom(sprintf(@texto$,@alvo$,@pontos,.messagec$));
+		announce(sprintf(@texto$,@alvo$,@pontos,.messagec$), bc_self, 0xFF3399);
+	}
+	
+	set @itemid,0;
+	set @texto$,"";
+	set @pontos,0;
+	
+	query_sql("SELECT `id` FROM `sistema_missao_item` order by `id` desc limit 0,1",@id);
+	set @mission_id,rand(1, @id);
+	query_sql("SELECT `itemid`,`texto`,`pontos` FROM `sistema_missao_item` WHERE `id`="+@mission_id+"",@itemid,@texto$,@pontos);
+	set @itemname$,getitemname(@itemid);
+	if(@id <= 0)
+	{
+		dispbottom("[Central de Missões]: Não foi possível designar sua missão!");
+		announce("[Central de Missões]: Não foi possível designar sua missão!", bc_self, 0xFF3399);
+	}
+	else
+	{
+		if(.mission_func == 0)
+			query_sql("UPDATE `sistema_missao` SET `account_id` = '"+getcharid(3)+"', `char_id` = '"+getcharid(0)+"', `func` = '"+.mission_func+"', `tipo_missao` = '"+.mission_type+"', `id_mission_i` = '"+@mission_id+"',  `pontos` = '"+@pontos+"' WHERE `account_id` = '"+getcharid(3)+"'");
+		else
+			query_sql("UPDATE `sistema_missao` SET `account_id` = '"+getcharid(3)+"', `char_id` = '"+getcharid(0)+"', `func` = '"+.mission_func+"', `tipo_missao` = '"+.mission_type+"', `id_mission_i` = '"+@mission_id+"', `pontos` = '"+@pontos+"' WHERE `char_id` = '"+getcharid(0)+"'");
+		dispbottom(sprintf(@texto$,@itemname$,@itemid,@pontos,.messagec$));
+		announce(sprintf(@texto$,@itemname$,@itemid,@pontos,.messagec$), bc_self, 0xFF3399);
+	}
 end;
 
 //Comando de ADM
@@ -177,6 +457,7 @@ OnAtcommandADM:
 							goto L_GM;
 						}
 						query_sql("UPDATE `sistema_missao_assasin` SET `pontos` = '"+@valor+"'");
+						set .pontosassasin,@valor;
 						mes .npc$;
 						mes "Dados inseridos com sucesso!";
 						close;
@@ -256,7 +537,7 @@ OnAtcommandADM:
 			
 			case 3:
 				next;
-				query_sql("UPDATE `sistema_missao_assasin` SET `pontos` = '0'");
+				query_sql("TRUNCATE `sistema_missao_assasin`");
 				close;
 				end;
 				
@@ -364,11 +645,16 @@ OnInit:
 	//Tipo da Missão | 1 - Caça | 2 - Assasinato | 4 - Dropar algum item.
 	//Sorteia aleatóriamente um tipo de missão definida para o jogador que estiver online.
 	//Somente Caça defina 1, se quiser caça e dropar item 1+4 = 5, assasinato e caça 1+2 = 3, todas 1+2+4 = 7.
-	set .mission_type,1;
+	set .mission_type,7;
 	
 	//Mensagem que ensina como ver as missões
 	set .messagec$,"Utilize @centralm para checar sua missão!";
+	//Mensagem base dos anúncios nao remover!
 	set .messagesql$,"[Central de Missões]: ";
+	//Mensagem base do sistema assasinato
+	set .messageassasin$,"Você deve matar [%s] para ganhar %d pontos. %s";
+	//Pontos base sistema assasinato
+	set .pontosassasin,10;
 	
 	//Comando de ADM
 	bindatcmd "gmcentralm",strnpcinfo(3)+"::OnAtcommandADM";
