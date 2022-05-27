@@ -9,7 +9,6 @@
 #include "../config/core.hpp"
 
 #include "map.hpp" //ELE_MAX
-#include "mapreg.hpp"
 
 //fwd declaration
 struct map_session_data;
@@ -621,7 +620,6 @@ struct Battle_Config
 	int exp_cost_inspiration;
 	int mvp_exp_reward_message;
 	int can_damage_skill; //Which BL types can damage traps
-	int visual_id_reservado;
 	int atcommand_levelup_events;
 	int atcommand_disable_npc;
 	int block_account_in_same_party;
@@ -660,25 +658,6 @@ struct Battle_Config
 	int min_shop_sell;
 	int feature_equipswitch;
 	int pet_walk_speed;
-	//[pedrodks]
-	//configuração de congelamento e petrificação
-	int bgro_max_status;
-	int bgro_cong_formula;
-	int bgro_petri_formula;
-	int bgro_cong_formula_luk;
-	int bgro_cong_formula_mdef;
-	int bgro_petri_formula_luk;
-	int bgro_petri_formula_mdef;
-	int bgro_cong_formula_fix;
-	int bgro_petri_formula_fix;
-	int bgro_cong_des_t2;
-	int bgro_petri_des_t2;
-	int bgro_max_luk_cong;
-	int bgro_max_luk_petri;
-	int bgro_max_divi;
-	int bgro_mdef_divi;
-	int bgro_mdef2_divi;
-	int bgro_fs_mdef;
 	/**
 	* Extended Vending system [Lilith]
 	**/
@@ -689,18 +668,6 @@ struct Battle_Config
 	int ex_vending_report;
 	int item_zeny;
 	int item_cash;
-	
-	// Sistema de anúncio e log de Cartas MvP e Mini-Boss [Bad]
-	// Revisado nesse Emulador por Pedrodks/Luminus 26/05/2022
-	int announcement_and_log_system;
-	int mvp_card_announce_system;
-	int mvp_card_announce;
-	int dropped_mvp_card_log;
-	int set_drop_announce_color;
-	int mini_boss_card_announce_system;
-	int mini_boss_card_announce;
-	int dropped_mini_boss_card_log;
-	int set_drop_card_announce_color;
 
 	// [CreativeSD]: Qeueue System
 #include "queue_battle_config_struct.inc"

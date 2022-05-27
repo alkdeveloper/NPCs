@@ -1768,7 +1768,7 @@ static bool mob_ai_sub_hard(struct mob_data *md, t_tick tick)
 				)
 			&&  md->state.attacked_count++ >= RUDE_ATTACKED_COUNT
 			&&  !mobskill_use(md, tick, MSC_RUDEATTACKED) // If can't rude Attack
-			&&  can_move && unit_escape(&md->bl, tbl, rnd()%10 +1, 0)) // Attempt escape
+			&&  can_move && unit_escape(&md->bl, tbl, rnd()%10 +1)) // Attempt escape
 			{	//Escaped
 				md->attacked_id = md->norm_attacked_id = 0;
 				return true;
@@ -1796,7 +1796,7 @@ static bool mob_ai_sub_hard(struct mob_data *md, t_tick tick)
 				if (abl->id != md->bl.id //Self damage does not cause rude attack
 				&& md->state.attacked_count++ >= RUDE_ATTACKED_COUNT				
 				&& !mobskill_use(md, tick, MSC_RUDEATTACKED) && can_move
-				&& !tbl && unit_escape(&md->bl, abl, rnd()%10 +1, 0))
+				&& !tbl && unit_escape(&md->bl, abl, rnd()%10 +1))
 				{	//Escaped.
 					//TODO: Maybe it shouldn't attempt to run if it has another, valid target?
 					md->attacked_id = md->norm_attacked_id = 0;
@@ -2439,7 +2439,6 @@ void mob_damage(struct mob_data *md, struct block_list *src, int damage)
 	if( md->special_state.ai == AI_SPHERE ) {//LOne WOlf explained that ANYONE can trigger the marine countdown skill. [Skotlex]
 		md->state.alchemist = 1;
 		mobskill_use(md, gettick(), MSC_ALCHEMIST);
-		unit_escape(&md->bl, src, 7, 2);
 	}
 }
 
@@ -2794,38 +2793,6 @@ int mob_dead(struct mob_data *md, struct block_list *src, int type)
 			// Announce first, or else ditem will be freed. [Lance]
 			// By popular demand, use base drop rate for autoloot code. [Skotlex]
 			mob_item_drop(md, dlist, ditem, 0, battle_config.autoloot_adjust ? drop_rate : md->db->dropitem[i].p, homkillonly);
-			
-			// Sistema de anúncio e log de Cartas MvP e Mini-Boss [Bad]
-			if (mvp_sd && battle_config.announcement_and_log_system) {
-
-				if (it->type == IT_CARD && md->get_bosstype() == BOSSTYPE_MVP && battle_config.mvp_card_announce_system) {
-					
-					if (battle_config.mvp_card_announce) {
-						char message[128];
-						sprintf (message, msg_txt(sd,451), mvp_sd->status.name, md->name, mapindex_id2name(mvp_sd->mapindex), it->ename.c_str(), (float)drop_rate/100);
-						intif_broadcast2(message, strlen(message) + 1, battle_config.set_drop_announce_color, 0x190, 12, 0, 0);
-					}
-
-					if (battle_config.dropped_mvp_card_log) {
-						if ( SQL_ERROR == Sql_Query(mmysql_handle, "INSERT INTO dropped_mvp_card_log (account_id, char_name, mvp_id, mvp_name, card_id, card_name, drop_map) VALUES ('%d', '%s', '%d', '%s', '%d', '%s', '%s')", mvp_sd->status.account_id, mvp_sd->status.name, md->mob_id, md->db->sprite.c_str(), it->nameid, it->name.c_str(),  mapindex_id2name(mvp_sd->mapindex))) // RMT Log System [Bad]
-						Sql_ShowDebug(mmysql_handle);
-					}
-				}
-
-				if (it->type == IT_CARD && md->get_bosstype() == BOSSTYPE_MINIBOSS && battle_config.mini_boss_card_announce_system) {
-					
-					if (battle_config.mini_boss_card_announce) {
-						char message[128];
-						sprintf (message, msg_txt(sd,451), mvp_sd->status.name, md->name, mapindex_id2name(mvp_sd->mapindex), it->ename.c_str(), (float)drop_rate/100);
-						intif_broadcast2(message, strlen(message) + 1, battle_config.set_drop_card_announce_color, 0x190, 12, 0, 0);
-					}
-					
-					if (battle_config.dropped_mini_boss_card_log) {
-						if ( SQL_ERROR == Sql_Query(mmysql_handle, "INSERT INTO dropped_mini_boss_card_log (account_id, char_name, mini_boss_id, mini_boss_name, card_id, card_name, drop_map) VALUES ('%d', '%s', '%d', '%s', '%d', '%s', '%s')", mvp_sd->status.account_id, mvp_sd->status.name, md->mob_id, md->db->sprite.c_str(), it->nameid, it->name.c_str(),  mapindex_id2name(mvp_sd->mapindex))) // RMT Log System [Bad]
-						Sql_ShowDebug(mmysql_handle);
-					}
-				}
-			}
 		}
 
 		// Ore Discovery [Celest]

@@ -1144,10 +1144,4 @@ int clif_visual_emblem_id(struct block_list* bl);
 /// Extended Vending [Lilith]
 int clif_vend(struct map_session_data *sd, int skill_lv);
 
-// (^~_~^) LGP Start
-
-void clif_gepard_send_lgp_settings(struct map_session_data * sd);
-
-// (^~_~^) LGP End
-
 #endif /* CLIF_HPP */

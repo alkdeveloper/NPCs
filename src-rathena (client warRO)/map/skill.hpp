@@ -254,7 +254,7 @@ struct s_skill_nounit_layout {
 	int dy[MAX_SKILL_UNIT_COUNT];
 };
 
-#define MAX_SKILLTIMERSKILL 15
+#define MAX_SKILLTIMERSKILL 50
 struct skill_timerskill {
 	int timer;
 	int src_id;
@@ -266,7 +266,7 @@ struct skill_timerskill {
 	int flag;
 };
 
-#define MAX_SKILLUNITGROUP 100 /// Maximum skill unit group (for same skill each source)
+#define MAX_SKILLUNITGROUP 25 /// Maximum skill unit group (for same skill each source)
 /// Skill unit group
 struct skill_unit_group {
 	int src_id; /// Caster ID/RID, if player is account_id

@@ -37,7 +37,6 @@ enum sc_type : int16;
 
 #define LANGTYPE_VAR "#langtype"
 #define CASHPOINT_VAR "#CASHPOINTS"
-#define BLOCKNEG_VAR "#BLOCKNEG"
 #define KAFRAPOINT_VAR "#KAFRAPOINTS"
 #define BANK_VAULT_VAR "#BANKVAULT"
 #define ROULETTE_BRONZE_VAR "RouletteBronze"
@@ -316,7 +315,6 @@ struct map_session_data {
 		bool sale_open;
 		bool refineui_open;
 		unsigned int block_action : 10;
-		unsigned int protection_acc : 1; // Proteção de Conta - [Orce brAthena]
 	} state;
 	struct {
 		unsigned char no_weapon_damage, no_magic_damage, no_misc_damage;

@@ -471,12 +471,6 @@ void storage_storageaddfromcart(struct map_session_data *sd, struct s_storage *s
  */
 void storage_storagegettocart(struct map_session_data* sd, struct s_storage *stor, int index, int amount)
 {
-	if( sd->state.protection_acc )
-	{
-		clif_displaymessage(sd->fd, msg_txt(sd,4000));
-		return;
-	}
-
 	unsigned char flag = 0;
 	enum e_storage_add result;
 
@@ -837,12 +831,6 @@ bool storage_guild_additem(struct map_session_data* sd, struct s_storage* stor, 
 			clif_displaymessage(sd->fd, msg_txt(sd,264));
 			return false;
 		}
-	}
-
-	if( sd->state.protection_acc )
-	{
-		clif_displaymessage(sd->fd, msg_txt(sd,4000));
-		return false;
 	}
 
 	if(itemdb_isstackable2(id)) { //Stackable

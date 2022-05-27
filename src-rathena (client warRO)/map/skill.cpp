@@ -4582,8 +4582,7 @@ static int skill_tarotcard(struct block_list* src, struct block_list *target, ui
 	}
 	case 3: // THE HIGH PRIESTESS - all buffs removed
 	{
-// original---------------status_change_clear_buffs(target, SCCB_BUFFS | SCCB_CHEM_PROTECT);
-		status_change_clear_buffs(target, SCCB_BUFFS);
+		status_change_clear_buffs(target, SCCB_BUFFS | SCCB_CHEM_PROTECT);
 		break;
 	}
 	case 4: // THE CHARIOT - 1000 damage, random armor destroyed
@@ -4978,9 +4977,6 @@ int skill_castend_damage_id (struct block_list* src, struct block_list *bl, uint
 #ifndef RENEWAL
 	case NJ_ISSEN:
 #endif
-
-//---------------azura old
-
 	case MO_EXTREMITYFIST:
 		{
 			struct block_list *mbl = bl; // For NJ_ISSEN
@@ -5002,7 +4998,7 @@ int skill_castend_damage_id (struct block_list* src, struct block_list *bl, uint
 			}
 			if (skill_id == MO_EXTREMITYFIST) {
 				mbl = src; // For MO_EXTREMITYFIST
-				i = 2; // Move 3 cells (From caster)
+				i = 3; // Move 3 cells (From caster)
 			}
 			if (dir > 0 && dir < 4)
 				x = -i;
@@ -5018,14 +5014,13 @@ int skill_castend_damage_id (struct block_list* src, struct block_list *bl, uint
 				y = 0;
 			// Ashura Strike still has slide effect in GVG
 			if ((mbl == src || (!map_flag_gvg2(src->m) && !map_getmapflag(src->m, MF_BATTLEGROUND))) &&
-				unit_walktoxy(src, mbl->x + x, mbl->y + y, 2)){
+				unit_movepos(src, mbl->x + x, mbl->y + y, 1, 1)) {
 				clif_blown(src);
 				clif_spiritball(src);
 			}
 		}
 		break;
 
-//-------------------------------------------------------------------------------------------------------
 	case HT_POWER:
 		if( tstatus->race == RC_BRUTE || tstatus->race == RC_INSECT )
 			skill_attack(BF_WEAPON,src,src,bl,skill_id,skill_lv,tick,flag);
@@ -7985,19 +7980,16 @@ int skill_castend_nodamage_id (struct block_list *src, struct block_list *bl, ui
 					clif_skill_fail(sd,skill_id,USESKILL_FAIL_LEVEL,0);
 				break;
 			}
-			
-			int chance_falha = rand()%100;
-			if (status_get_dispellresist(bl) > chance_falha || !tsc || !tsc->count) {
-				if (sd)
-					clif_skill_fail(sd,skill_id,USESKILL_FAIL_LEVEL,0);
-				return 1;
+			if(status_isimmune(bl))
 				break;
-			}
 
 			//Remove bonus_script by Dispell
 			if (dstsd)
 				pc_bonus_script_clear(dstsd,BSF_REM_ON_DISPELL);
-			
+
+			if(!tsc || !tsc->count)
+				break;
+
 			for(i=0;i<SC_MAX;i++) {
 				if (!tsc->data[i])
 					continue;
@@ -8370,15 +8362,8 @@ int skill_castend_nodamage_id (struct block_list *src, struct block_list *bl, ui
 		break;
 
 	case NPC_RUN:
-		if (md) {
-			block_list* tbl = map_id2bl(md->target_id);
-
-			if (tbl) {
-				mob_unlocktarget(md, tick);
-				if (unit_escape(src, tbl, skill_lv > 1 ? skill_lv : AREA_SIZE, 2)) // Send distance in skill level > 1
-					md->state.skillstate = MSS_WALK; // Otherwise it isn't updated in the AI.
-			}
-		}
+		if (md && unit_escape(src, bl, rnd()%10 + 1))
+			mob_unlocktarget(md, tick);
 		break;
 
 	case NPC_TRANSFORMATION:
@@ -12109,17 +12094,17 @@ int skill_castend_pos2(struct block_list* src, int x, int y, uint16 skill_id, ui
 		}
 	// Fall through
 	case WZ_METEOR: {
-		int area = skill_get_splash(skill_id, skill_lv);
-		short sx = 0, sy = 0;
+			int area = skill_get_splash(skill_id, skill_lv);
+			short tmpx = 0, tmpy = 0;
 
-		for (i = 1; i <= skill_get_time(skill_id, skill_lv) / skill_get_unit_interval(skill_id); i++) {
-			// Creates a random Cell in the Splash Area
-			sx = x - area + rnd() % (area * 2 + 2 - 1);
-			sy = y - area + rnd() % (area * 2 + 2 - 1);
-			skill_unitsetting(src, skill_id, skill_lv, sx, sy, flag + i * skill_get_unit_interval(skill_id));
+			for (i = 1; i <= skill_get_time(skill_id, skill_lv)/skill_get_unit_interval(skill_id); i++) {
+				// Creates a random Cell in the Splash Area
+				tmpx = x - area + rnd()%(area * 2 + 1);
+				tmpy = y - area + rnd()%(area * 2 + 1);
+				skill_unitsetting(src, skill_id, skill_lv, tmpx, tmpy, flag+i*skill_get_unit_interval(skill_id));
+			}
 		}
-	}
-	 break;
+		break;
 
 	case AL_WARP:
 		if(sd)
@@ -12835,13 +12820,6 @@ static int skill_dance_overlap_sub(struct block_list* bl, va_list ap)
 //When 1, this unit has been positioned, so start the cancel effect.
 int skill_dance_overlap(struct skill_unit* unit, int flag)
 {
-
-// (^~_~^) LGP Start
-
-	return 0;
-
-// (^~_~^) LGP End
-
 	if (!unit || !unit->group || !(unit->group->state.song_dance&0x1))
 		return 0;
 	if (!flag && !(unit->val2&UF_ENSEMBLE))
@@ -17392,11 +17370,6 @@ int skill_frostjoke_scream(struct block_list *bl, va_list ap)
 		struct map_session_data *sd = (struct map_session_data *)bl;
 		if ( sd && sd->sc.option&(OPTION_INVISIBLE|OPTION_MADOGEAR) )
 			return 0;//Frost Joke / Scream cannot target invisible or MADO Gear characters [Ind]
-
-	//pedrodks
-	//bloqueia o efeito da piada infame com o valor definido de mdef
-		if ( sd && sd->base_status.mdef >= battle_config.bgro_fs_mdef )
-			return 0;
 	}
 	//It has been reported that Scream/Joke works the same regardless of woe-setting. [Skotlex]
 	if(battle_check_target(src,bl,BCT_ENEMY) > 0)
@@ -19221,11 +19194,6 @@ void skill_unit_move_unit_group(struct skill_unit_group *group, int16 m, int16 d
 		switch(m_flag[i]) {
 			case 0:
 			//Cell moves independently, safely move it.
-
-				// (^~_~^) LGP Start
-				clif_skill_delunit(unit1);
-				// (^~_~^) LGP End
-
 				map_foreachinmovearea(clif_outsight, &unit1->bl, AREA_SIZE, dx, dy, BL_PC, &unit1->bl);
 				map_moveblock(&unit1->bl, unit1->bl.x+dx, unit1->bl.y+dy, tick);
 				break;
@@ -19237,11 +19205,6 @@ void skill_unit_move_unit_group(struct skill_unit_group *group, int16 m, int16 d
 					if(m_flag[j] != 2 || !group->unit[j].alive)
 						continue;
 					//Move to where this cell would had moved.
-
-					// (^~_~^) LGP Start
-					clif_skill_delunit(unit1);
-					// (^~_~^) LGP End
-
 					unit2 = &group->unit[j];
 					dx2 = unit2->bl.x + dx - unit1->bl.x;
 					dy2 = unit2->bl.y + dy - unit1->bl.y;

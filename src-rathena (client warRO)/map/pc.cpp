@@ -895,18 +895,7 @@ int pc_equippoint_sub(struct map_session_data *sd,struct item_data* id){
 int pc_equippoint(struct map_session_data *sd,int n){
 	nullpo_ret(sd);
 
-	int ep = pc_equippoint_sub(sd, sd->inventory_data[n]);
-
-	if (battle_config.visual_id_reservado &&
-		sd->inventory.u.items_inventory[n].card[0] == CARD0_CREATE &&
-		MakeDWord(sd->inventory.u.items_inventory[n].card[2], sd->inventory.u.items_inventory[n].card[3]) == battle_config.visual_id_reservado)
-	{ // Item visual - Convertido
-		if (ep&EQP_HEAD_TOP) { ep &= ~EQP_HEAD_TOP; ep |= EQP_COSTUME_HEAD_TOP; }
-		if (ep&EQP_HEAD_LOW) { ep &= ~EQP_HEAD_LOW; ep |= EQP_COSTUME_HEAD_LOW; }
-		if (ep&EQP_HEAD_MID) { ep &= ~EQP_HEAD_MID; ep |= EQP_COSTUME_HEAD_MID; }
-		if (ep&EQP_GARMENT) { ep &= ~EQP_GARMENT; ep |= EQP_COSTUME_GARMENT; }
-	}
-	return ep;
+	return pc_equippoint_sub(sd,sd->inventory_data[n]);
 }
 
 /**
@@ -1649,15 +1638,6 @@ void pc_reg_received(struct map_session_data *sd)
 	sd->langtype = pc_readaccountreg(sd, add_str(LANGTYPE_VAR));
 	if (msg_checklangtype(sd->langtype,true) < 0)
 		sd->langtype = 0; //invalid langtype reset to default
-
-// (^~_~^) LGP Start
-
-	if (is_gepard_active == true)
-	{
-		clif_gepard_send_lgp_settings(sd);
-	}
-
-// (^~_~^) LGP End
 
 	// Cash shop
 	sd->cashPoints = pc_readaccountreg(sd, add_str(CASHPOINT_VAR));
@@ -3522,10 +3502,6 @@ void pc_bonus(struct map_session_data *sd,int type,int val)
 			if (sd->state.lr_flag != 2)
 				sd->special_state.no_walk_delay = 1;
 			break;
-		case SP_DISPELL_RESIST:
-			if (sd->state.lr_flag != 2)
-				status->dispellresist += val;
-			break;
 		default:
 			if (running_npc_stat_calc_event) {
 				ShowWarning("pc_bonus: unknown bonus type %d %d in OnPCStatCalcEvent!\n", type, val);
@@ -5062,12 +5038,6 @@ bool pc_dropitem(struct map_session_data *sd,int n,int amount)
 		return false; //Can't drop items in nodrop mapflag maps.
 	}
 
-	if( sd->state.protection_acc )
-	{
-		clif_displaymessage(sd->fd, msg_txt(sd,4000));
-		return false;
-	}
-
 	if( !pc_candrop(sd,&sd->inventory.u.items_inventory[n]) )
 	{
 		clif_displaymessage (sd->fd, msg_txt(sd,263));
@@ -5475,10 +5445,6 @@ int pc_useitem(struct map_session_data *sd,int n)
 
 	run_script(script,0,sd->bl.id,fake_nd->bl.id);
 	potion_flag = 0;
-
-	if( pc_readaccountreg(sd, add_str("#BLOCKPASS")) > 0 )
-		sd->state.protection_acc = 1;
-
 	return 1;
 }
 
@@ -5505,12 +5471,6 @@ enum e_additem_result pc_cart_additem(struct map_session_data *sd,struct item *i
 		return ADDITEM_INVALID;
 
 	data = itemdb_search(item->nameid);
-
-	if( sd->state.protection_acc )
-	{
-		clif_displaymessage(sd->fd, msg_txt(sd,4000));
-		return ADDITEM_INVALID;
-	}
 
 	if( data->stack.cart && amount > data->stack.amount )
 	{// item stack limitation
@@ -8628,7 +8588,6 @@ int pc_readparam(struct map_session_data* sd,int type)
 		case SP_HIT:		     val = sd->battle_status.hit; break;
 		case SP_FLEE1:		     val = sd->battle_status.flee; break;
 		case SP_FLEE2:		     val = sd->battle_status.flee2; break;
-		case SP_DISPELL_RESIST:	 val = sd->battle_status.dispellresist; break;
 		case SP_DEFELE:		     val = sd->battle_status.def_ele; break;
 		case SP_MAXHPRATE:	     val = sd->hprate; break;
 		case SP_MAXSPRATE:	     val = sd->sprate; break;
@@ -10424,11 +10383,8 @@ bool pc_equipitem(struct map_session_data *sd,short n,int req_pos,bool equipswit
 		}
 	} else if(pos == EQP_ARMS && id->equip == EQP_HAND_R) { //Dual wield capable weapon.
 		pos = (req_pos&EQP_ARMS);
-		if (pos == EQP_ARMS && (equip_index[EQI_HAND_R] >= 0) && (equip_index[EQI_HAND_L] >= 0))
-		pos = EQP_HAND_R;
-		else if (pos == EQP_ARMS) //User specified both slots, pick one for them.
-        pos = equip_index[EQI_HAND_R] >= 0 ? EQP_HAND_L : EQP_HAND_R;
-
+		if (pos == EQP_ARMS) //User specified both slots, pick one for them.
+			pos = equip_index[EQI_HAND_R] >= 0 ? EQP_HAND_L : EQP_HAND_R;
 	} else if(pos == EQP_SHADOW_ACC) { // Shadow System
 		pos = req_pos&EQP_SHADOW_ACC;
 		if (pos == EQP_SHADOW_ACC)

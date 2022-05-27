@@ -65,82 +65,6 @@ static inline uint32 client_tick( t_tick tick ){
 	return (uint32)tick;
 }
 
-// (^~_~^) Gepard Shield Start
-
-bool clif_gepard_process_packet(struct map_session_data* sd)
-{
-	int fd = sd->fd;
-	struct socket_data* s = session[fd];
-	int packet_id = RFIFOW(fd, 0);
-	long long diff_time = gettick() - session[fd]->gepard_info.sync_tick;
-
-	if (diff_time > 40000)
-	{
-		clif_authfail_fd(sd->fd, 15);
-		return true;
-	}
-
-	if (packet_id <= MAX_PACKET_DB)
-	{
-		return gepard_process_cs_packet(fd, s, packet_db[packet_id].len);
-	}
-
-	if (packet_id == CS_GEPARD_SYNC_2)
-	{
-		const unsigned int sync_packet_len = 128;
-		unsigned int control_value, info_type, info_code;
-
-		if (RFIFOREST(fd) < sync_packet_len)
-		{
-			return true;
-		}
-
-		gepard_enc_dec(RFIFOP(fd, 2), sync_packet_len - 2, &s->sync_crypt); 
-
-		control_value = control_value = RFIFOL(fd, 2); 
-
-		if (control_value != 0xDDCCBBAA)
-		{
-			RFIFOSKIP(fd, sync_packet_len);
-			return true;
-		}
-
-		s->gepard_info.sync_tick = gepard_get_tick();
-
-		info_type = RFIFOW(fd, 6);
-		info_code = RFIFOW(fd, 8);
-
-		if (info_type == 1 && info_code == 1)
-		{
-			const char* message = (const char*)RFIFOP(fd, 10);
-			chrif_gepard_save_report(sd, message);
-		}
-
-		RFIFOSKIP(fd, sync_packet_len);
-		return true;
-	}
-
-	return gepard_process_cs_packet(fd, s, 0);
-}
-
-// (^~_~^) Gepard Shield End
-
-// (^~_~^) LGP Start
-
-void clif_gepard_send_lgp_settings(struct map_session_data * sd)
-{
-	const unsigned int packet_size = 12;
-
-	WFIFOHEAD(sd->fd, packet_size);
-	WFIFOW(sd->fd, 0) = SC_GEPARD_SETTINGS;
-	WFIFOW(sd->fd, 2) = packet_size;
-	WFIFOL(sd->fd, 4) = 1; // LGP
-	WFIFOL(sd->fd, 8) = 1; // mode
-	WFIFOSET(sd->fd, packet_size);
-}
-
-// (^~_~^) LGP End
-
 /* for clif_clearunit_delayed */
 static struct eri *delay_clearunit_ers;
 
@@ -5153,40 +5077,6 @@ void clif_getareachar_skillunit(struct block_list *bl, struct skill_unit *unit, 
 	header = 0x09ca;
 #endif
 
-// (^~_~^) LGP Start
-
-	switch (unit->group->skill_id)
-	{
-		case WZ_STORMGUST:
-		{
-			if (&unit->group->unit[unit->group->unit_count / 2] == unit)
-			{
-				unit_id = 0x10;
-			}
-		}
-		break;
-
-		case WZ_VERMILION:
-		{
-			if (&unit->group->unit[unit->group->unit_count / 2] == unit)
-			{
-				unit_id = 0x12;
-			}
-		}
-		break;
-
-		case AL_PNEUMA:
-		{
-			if (&unit->group->unit[unit->group->unit_count / 2] != unit)
-			{
-				return;
-			}
-		}
-		break;
-	}
-
-// (^~_~^) LGP End
-
 	len = packet_len(header);
 	WBUFW(buf,pos) = header;
 	if (header != 0x011f) {
@@ -5497,7 +5387,7 @@ void clif_deleteskill(struct map_session_data *sd, int skill_id)
 	WFIFOW(fd,2) = skill_id;
 	WFIFOSET(fd,packet_len(0x441));
 #endif
-	//clif_skillinfoblock(sd);
+	clif_skillinfoblock(sd);
 }
 
 /// Updates a skill in the skill tree (ZC_SKILLINFO_UPDATE).
@@ -10529,16 +10419,6 @@ void clif_parse_WantToConnection(int fd, struct map_session_data* sd)
 #endif
 	session[fd]->session_data = sd;
 
-// (^~_~^) Gepard Shield Start
-
-	if (is_gepard_active)
-	{
-		gepard_init(session[fd], fd, GEPARD_MAP);
-		session[fd]->gepard_info.sync_tick = gettick();
-	}
-
-// (^~_~^) Gepard Shield End
-
 	pc_setnewpc(sd, account_id, char_id, login_id1, client_tick, sex, fd);
 
 #if PACKETVER < 20070521
@@ -12046,11 +11926,6 @@ void clif_parse_NpcBuyListSend(int fd, struct map_session_data* sd)
 
 	if( sd->state.trading || !sd->npc_shopid )
 		result = 1;
-	else if( sd->state.protection_acc )
-	{
-		clif_displaymessage(sd->fd, msg_txt(sd,4000));
-		result = 1;
-	}
 	else
 		result = npc_buylist(sd, n, (struct s_npc_buy_list*)RFIFOP(fd,info->pos[1]));
 
@@ -12088,11 +11963,6 @@ void clif_parse_NpcSellListSend(int fd,struct map_session_data *sd)
 
 	if (sd->state.trading || !sd->npc_shopid)
 		fail = 1;
-	else if( sd->state.protection_acc )
-	{
-		clif_displaymessage(sd->fd, msg_txt(sd,4000));
-		fail = 1;
-	}
 	else
 		fail = npc_selllist(sd,n,item_list);
 
@@ -13812,12 +13682,6 @@ void clif_parse_OpenVending(int fd, struct map_session_data* sd){
 		return;
 	}
 
-	if( sd->state.protection_acc )
-	{
-		clif_displaymessage(sd->fd, msg_txt(sd,4000));
-		return;
-	}
-
 	if( message[0] == '\0' ) // invalid input
 		return;
 
@@ -15324,8 +15188,7 @@ void clif_parse_HomMenu(int fd, struct map_session_data *sd)
 /// 0292
 void clif_parse_AutoRevive(int fd, struct map_session_data *sd)
 {
-	if(!map_getmapflag(sd->bl.m, MF_PVP)) pc_revive_item(sd);
-  else clif_displaymessage(sd->fd, msg_txt(sd,451));
+	pc_revive_item(sd);
 }
 
 
@@ -16488,13 +16351,6 @@ void clif_parse_Auction_setitem(int fd, struct map_session_data *sd){
 		return;
 	}
 
-	if( sd->state.protection_acc )
-	{
-		clif_Auction_setitem(sd->fd, idx, true);
-		clif_displaymessage(sd->fd, msg_txt(sd,4000));
-		return;
-	}
-
 	if( !pc_can_give_items(sd) || sd->inventory.u.items_inventory[idx].expire_time ||
 			!sd->inventory.u.items_inventory[idx].identify ||
 			(sd->inventory.u.items_inventory[idx].bound && !pc_can_give_bounded_items(sd)) ||
@@ -16897,12 +16753,10 @@ void clif_parse_cashshop_buy(int fd, struct map_session_data *sd){
 	info = &packet_db[cmd];
 
 	if( sd->state.trading || !sd->npc_shopid ) {
-        clif_cashshop_ack(sd,1);
-        return;
-    } else if( sd->state.protection_acc ) {
-        clif_displaymessage(sd->fd, msg_txt(sd,4000));
-        return;
-    } else {
+		clif_cashshop_ack(sd,1);
+		return;
+	}
+	else {
 #if PACKETVER < 20101116
 		short nameid = RFIFOW(fd,info->pos[0]);
 		short amount = RFIFOW(fd,info->pos[1]);
@@ -21810,15 +21664,6 @@ static int clif_parse(int fd)
 
 	if (RFIFOREST(fd) < 2)
 		return 0;
-
-// (^~_~^) Gepard Shield Start
-
-	if (is_gepard_active == true && sd != NULL && clif_gepard_process_packet(sd) == true)
-	{
-		return 0;
-	}
-
-// (^~_~^) Gepard Shield End
 
 	cmd = RFIFOW(fd, 0);
 

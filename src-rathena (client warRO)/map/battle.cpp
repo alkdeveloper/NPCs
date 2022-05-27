@@ -2093,14 +2093,11 @@ static int64 battle_calc_base_damage(struct block_list *src, struct status_data 
 void battle_consume_ammo(struct map_session_data*sd, int skill, int lv)
 {
 	int qty = 1;
- 
-	if (pc_isvip(sd))
-		qty = 0;
 
 	if (!battle_config.arrow_decrement)
 		return;
 
-	if (skill && !pc_isvip(sd)) {
+	if (skill) {
 		qty = skill_get_ammo_qty(skill, lv);
 		if (!qty) qty = 1;
 	}
@@ -6899,16 +6896,10 @@ int64 battle_calc_return_damage(struct block_list* bl, struct block_list *src, i
 	if (sc && sc->data[SC_WHITEIMPRISON])
 		return 0; // White Imprison does not reflect any damage
 
-//========================original==================================
-//	if (flag & BF_SHORT) {//Bounces back part of the damage.
-//		if ( (skill_get_inf2(skill_id)&INF2_TRAP || !status_reflect) && sd && sd->bonus.short_weapon_damage_return ) {
-//			rdamage += damage * sd->bonus.short_weapon_damage_return / 100;
-//			rdamage = i64max(rdamage,1);
-//========================editado==================================
 	if (flag & BF_SHORT) {//Bounces back part of the damage.
-        if ( (skill_get_inf2(skill_id)&INF2_TRAP || !status_reflect) && sd && sd->bonus.short_weapon_damage_return && skill_id != WS_CARTTERMINATION && skill_id != GS_DESPERADO  ) {
-            rdamage += damage * sd->bonus.short_weapon_damage_return / 100;
-//=================================================================
+		if ( (skill_get_inf2(skill_id)&INF2_TRAP || !status_reflect) && sd && sd->bonus.short_weapon_damage_return ) {
+			rdamage += damage * sd->bonus.short_weapon_damage_return / 100;
+			rdamage = i64max(rdamage,1);
 		} else if( status_reflect && sc && sc->count ) {
 			if( sc->data[SC_REFLECTSHIELD] ) {
 				struct status_change_entry *sce_d;
@@ -7654,12 +7645,6 @@ int battle_check_target( struct block_list *src, struct block_list *target,int f
 
 	if( (s_bl = battle_get_master(src)) == NULL )
 		s_bl = src;
-	if ( s_bl->type == BL_PC && t_bl->type == BL_MOB ) {
-		struct map_session_data *sd = BL_CAST( BL_PC, s_bl );
-		if ( ( ( (TBL_MOB*)target )->mob_id == 1288 && !strcmp( mapindex_id2name(sd->mapindex), "guild_vs1" ) ) &&
-			( sd->status.guild_id == mapreg_readreg( add_str("$koegid") ) || battle_getcurrentskill(src) > 0 ) )
-		return 0;
-	}
 
 	if ( s_bl->type == BL_PC ) {
 		switch( t_bl->type ) {
@@ -8521,7 +8506,6 @@ static const struct _battle_data {
 	{ "exp_cost_inspiration",               &battle_config.exp_cost_inspiration,            1,      0,      100,            },
 	{ "mvp_exp_reward_message",             &battle_config.mvp_exp_reward_message,          0,      0,      1,              },
 	{ "can_damage_skill",                   &battle_config.can_damage_skill,                1,      0,      BL_ALL,         },
-	{ "visual_id_reservado",				&battle_config.visual_id_reservado,				999998,	0,		INT_MAX,		},
 	{ "atcommand_levelup_events",			&battle_config.atcommand_levelup_events,		0,		0,		1,				},
 	{ "atcommand_disable_npc",				&battle_config.atcommand_disable_npc,			1,		0,		1,				},
 	{ "block_account_in_same_party",		&battle_config.block_account_in_same_party,		1,		0,		1,				},
@@ -8560,26 +8544,6 @@ static const struct _battle_data {
 	{ "min_shop_sell",                      &battle_config.min_shop_sell,                   0,      0,      INT_MAX,        },
 	{ "feature.equipswitch",                &battle_config.feature_equipswitch,             1,      0,      1,              },
 	{ "pet_walk_speed",                     &battle_config.pet_walk_speed,                  1,      1,      3,              },
-
-	//pedrodks
-	{ "bgro_max_status",                    &battle_config.bgro_max_status,                 0,      0,      INT_MAX, },
-	{ "bgro_cong_formula",                  &battle_config.bgro_cong_formula,               0,      0,      INT_MAX, },
-	{ "bgro_petri_formula",                 &battle_config.bgro_petri_formula,              0,      0,      INT_MAX, },
-	{ "bgro_cong_formula_luk",              &battle_config.bgro_cong_formula_luk,           0,      0,      INT_MAX, },
-	{ "bgro_cong_formula_mdef",             &battle_config.bgro_cong_formula_mdef,          0,      0,      INT_MAX, },
-	{ "bgro_petri_formula_luk",             &battle_config.bgro_petri_formula_luk,          0,      0,      INT_MAX, },
-	{ "bgro_petri_formula_mdef",            &battle_config.bgro_petri_formula_mdef,         0,      0,      INT_MAX, },
-	{ "bgro_cong_formula_fix",              &battle_config.bgro_cong_formula_fix,           0,      0,      INT_MAX, },
-	{ "bgro_petri_formula_fix",             &battle_config.bgro_petri_formula_fix,          0,      0,      INT_MAX, },
-	{ "bgro_cong_des_t2",                   &battle_config.bgro_cong_des_t2,                0,      0,      INT_MAX, },
-	{ "bgro_petri_des_t2",                  &battle_config.bgro_petri_des_t2,               0,      0,      INT_MAX, },
-	{ "bgro_max_luk_cong",                  &battle_config.bgro_max_luk_cong,               0,      0,      INT_MAX, },
-	{ "bgro_max_luk_petri",                 &battle_config.bgro_max_luk_petri,              0,      0,      INT_MAX, },
-	{ "bgro_max_divi",                      &battle_config.bgro_max_divi,                   0,      0,      INT_MAX, },
-	{ "bgro_mdef_divi",                     &battle_config.bgro_mdef_divi,                  0,      0,      INT_MAX, },
-	{ "bgro_mdef2_divi",                    &battle_config.bgro_mdef2_divi,                 0,      0,      INT_MAX, },
-	{ "bgro_fs_mdef",                       &battle_config.bgro_fs_mdef,                    0,      0,      INT_MAX, },
-
 	/**
 	* Extended Vending system [Lilith]
 	**/
@@ -8590,18 +8554,6 @@ static const struct _battle_data {
 	{ "ex_vending_report",					&battle_config.ex_vending_report,				1,		0,		1,				}, // [Easycore]
 	{ "item_zeny",							&battle_config.item_zeny,						0,		0,		MAX_ITEMID,		},
 	{ "item_cash",							&battle_config.item_cash,						0,		0,		MAX_ITEMID,		},
-	
-	// Sistema de anúncio e log de Cartas MvP e Mini-Boss [Bad]
-	// Revisado nesse Emulador por Pedrodks/Luminus 26/05/2022
-	{ "announcement_and_log_system",        &battle_config.announcement_and_log_system,     1,      0,      1,              },
-	{ "mvp_card_announce_system",           &battle_config.mvp_card_announce_system,        1,      0,      1,              },
-	{ "mvp_card_announce",                  &battle_config.mvp_card_announce,               1,      0,      1,              },
-	{ "dropped_mvp_card_log",               &battle_config.dropped_mvp_card_log,            1,      0,      1,              },
-	{ "set_drop_announce_color",            &battle_config.set_drop_announce_color,         0xFFBB00,      0,INT_MAX,       },
-	{ "mini_boss_card_announce_system",     &battle_config.mini_boss_card_announce_system,  1,      0,      1,              },
-	{ "mini_boss_card_announce",            &battle_config.mini_boss_card_announce,         1,      0,      1,              },
-	{ "dropped_mini_boss_card_log",         &battle_config.dropped_mini_boss_card_log,      1,      0,      1,              },
-	{ "set_drop_card_announce_color",       &battle_config.set_drop_card_announce_color,    0xFFBB00,      0,INT_MAX,       },
 
 	// [CreativeSD]: Queue System
 #include "queue_battle_config_init.inc"

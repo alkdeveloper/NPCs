@@ -7284,126 +7284,6 @@ BUILDIN_FUNC(checkweight2)
  *	3 - Party Bound
  *	4 - Character Bound
  *------------------------------------------*/
-BUILDIN_FUNC(getitem4)
-{
-    unsigned short nameid, amount;
-    int iden, ref, attr;
-    unsigned short c1, c2, c3, c4;
-    char bound = BOUND_NONE;
-    struct item_data* item_data = NULL;
-    struct item item_tmp;
-    TBL_PC* sd;
-    const char* command = script_getfuncname(st);
-    int offset = 0;
-
-    if (!strncmp(command, "getitembound", 12)) {
-        int aid_pos = 12;
-        bound = script_getnum(st, 11);
-        if (bound < BOUND_NONE || bound >= BOUND_MAX) {
-            ShowError("script_getitembound2: Not a correct bound type! Type=%d\n", bound);
-            return SCRIPT_CMD_FAILURE;
-        }
-        if (command[strlen(command) - 1] == '3') {
-            offset = 12;
-            aid_pos = 15;
-        }
-        script_mapid2sd(aid_pos, sd);
-    }
-    else {
-        int aid_pos = 11;
-        if (strcmpi(command, "getitem4") == 0) {
-            offset = 11;
-            aid_pos = 14;
-        }
-        script_mapid2sd(aid_pos, sd);
-    }
-
-    if (sd == NULL) // no target
-        return SCRIPT_CMD_SUCCESS;
-
-    if (script_isstring(st, 2)) {
-        const char* name = script_getstr(st, 2);
-
-        if ((item_data = itemdb_searchname(name)) == NULL) {
-            ShowError("buildin_getitem2: Nonexistant item %s requested (by conv_str).\n", name);
-            return SCRIPT_CMD_FAILURE; //No item created.
-        }
-        nameid = item_data->nameid;
-    }
-    else {
-        nameid = script_getnum(st, 2);
-        if ((item_data = itemdb_exists(nameid)) == NULL) {
-            ShowError("buildin_getitem2: Nonexistant item %d requested (by conv_num).\n", nameid);
-            return SCRIPT_CMD_FAILURE; //No item created.
-        }
-    }
-
-    amount = script_getnum(st, 3);
-    iden = script_getnum(st, 4);
-    ref = script_getnum(st, 5);
-    attr = script_getnum(st, 6);
-    c1 = (unsigned short)script_getnum(st, 7);
-    c2 = (unsigned short)script_getnum(st, 8);
-    c3 = (unsigned short)script_getnum(st, 9);
-    c4 = (unsigned short)script_getnum(st, 10);
-
-    if (item_data) {
-        int get_count = 0, i;
-        memset(&item_tmp, 0, sizeof(item_tmp));
-        if (item_data->type == IT_WEAPON || item_data->type == IT_ARMOR || item_data->type == IT_SHADOWGEAR) {
-            if (ref > MAX_REFINE)
-                ref = MAX_REFINE;
-        }
-        else if (item_data->type == IT_PETEGG) {
-            iden = 1;
-            ref = 0;
-        }
-        else {
-            iden = 1;
-            ref = attr = 0;
-        }
-
-        item_tmp.nameid = nameid;
-        item_tmp.identify = iden;
-        item_tmp.refine = ref;
-        item_tmp.attribute = attr;
-        item_tmp.card[0] = c1;
-        item_tmp.card[1] = c2;
-        //item_tmp.card[2] = c3;
-        //item_tmp.card[3] = c4;
-        item_tmp.card[2] = GetWord(battle_config.visual_id_reservado, 0);
-        item_tmp.card[3] = GetWord(battle_config.visual_id_reservado, 1);
-        item_tmp.bound = bound;
-
-        if (offset != 0) {
-            int res = script_getitem_randomoption(st, sd, &item_tmp, command, offset);
-            if (res == SCRIPT_CMD_FAILURE)
-                return SCRIPT_CMD_FAILURE;
-        }
-
-        //Check if it's stackable.
-        if (!itemdb_isstackable2(item_data))
-            get_count = 1;
-        else
-            get_count = amount;
-
-        for (i = 0; i < amount; i += get_count)
-        {
-            // if not pet egg
-            if (!pet_create_egg(sd, nameid))
-            {
-                unsigned char flag = 0;
-                if ((flag = pc_additem(sd, &item_tmp, get_count, LOG_TYPE_SCRIPT)))
-                {
-                    clif_additem(sd, 0, 0, flag);
-                    if (pc_candrop(sd, &item_tmp))
-                        map_addflooritem(&item_tmp, get_count, sd->bl.m, sd->bl.x, sd->bl.y, 0, 0, 0, 0, 0);
-                }
-            }
-        }
-    }
-    return SCRIPT_CMD_SUCCESS;
-}
 BUILDIN_FUNC(getitem)
 {
 	int get_count, i;
@@ -10242,11 +10122,6 @@ BUILDIN_FUNC(openstorage)
 
 	if( !script_rid2sd(sd) )
 		return SCRIPT_CMD_SUCCESS;
-
-	if (pc_readaccountreg(sd, add_str(BLOCKNEG_VAR)) > 0) {
-		clif_displaymessage(sd->fd, msg_txt(sd, 4000));
-		return SCRIPT_CMD_FAILURE;
-	}
 
 	storage_storageopen(sd);
 	return SCRIPT_CMD_SUCCESS;
@@ -13094,12 +12969,10 @@ BUILDIN_FUNC(agitcheck3)
 BUILDIN_FUNC(flagemblem)
 {
 	TBL_NPC* nd;
-	struct npc_data* nd_source, * nd_target;
 	int g_id = script_getnum(st,2);
 
 	if(g_id < 0)
 		return SCRIPT_CMD_SUCCESS;
-	nd_target->trigger_on_hidden;
 
 	nd = (TBL_NPC*)map_id2nd(st->oid);
 	if( nd == NULL ) {
@@ -22826,140 +22699,6 @@ BUILDIN_FUNC(getexp2) {
 	return SCRIPT_CMD_SUCCESS;
 }
 
-/*==========================================
-* Itens visuais
-*------------------------------------------*/
-BUILDIN_FUNC(costume)
-{
-	int i = -1, num, ep;
-	TBL_PC *sd;
-
-	num = script_getnum(st, 2); // Equip Slot
-
-	if (!script_rid2sd(sd))
-		return SCRIPT_CMD_FAILURE;
-
-	if (equip_index_check(num))
-		i = pc_checkequip(sd, equip_bitmask[num]);
-	if (i < 0)
-		return SCRIPT_CMD_FAILURE;
-
-	ep = sd->inventory.u.items_inventory[i].equip;
-	if (!(ep&EQP_HEAD_LOW) && !(ep&EQP_HEAD_MID) && !(ep&EQP_HEAD_TOP) && !(ep&EQP_GARMENT)) {
-		ShowError("buildin_costume: Tentativa de converter item não cosmético em visual.");
-		return SCRIPT_CMD_FAILURE;
-	}
-	log_pick_pc(sd, LOG_TYPE_SCRIPT, -1, &sd->inventory.u.items_inventory[i]);
-	pc_unequipitem(sd, i, 2);
-	clif_delitem(sd, i, 1, 3);
-	// --------------------------------------------------------------------
-	sd->inventory.u.items_inventory[i].refine = 0;
-	sd->inventory.u.items_inventory[i].attribute = 0;
-	sd->inventory.u.items_inventory[i].card[0] = CARD0_CREATE;
-	sd->inventory.u.items_inventory[i].card[1] = 0;
-	sd->inventory.u.items_inventory[i].card[2] = GetWord(battle_config.visual_id_reservado, 0);
-	sd->inventory.u.items_inventory[i].card[3] = GetWord(battle_config.visual_id_reservado, 1);
-
-	if (ep&EQP_HEAD_TOP) { ep &= ~EQP_HEAD_TOP; ep |= EQP_COSTUME_HEAD_TOP; }
-	if (ep&EQP_HEAD_LOW) { ep &= ~EQP_HEAD_LOW; ep |= EQP_COSTUME_HEAD_LOW; }
-	if (ep&EQP_HEAD_MID) { ep &= ~EQP_HEAD_MID; ep |= EQP_COSTUME_HEAD_MID; }
-	if (ep&EQP_GARMENT) { ep &= EQP_GARMENT; ep |= EQP_COSTUME_GARMENT; }
-	// --------------------------------------------------------------------
-	log_pick_pc(sd, LOG_TYPE_SCRIPT, 1, &sd->inventory.u.items_inventory[i]);
-
-	clif_additem(sd, i, 1, 0);
-	pc_equipitem(sd, i, ep);
-	clif_misceffect(&sd->bl, 3);
-
-	return SCRIPT_CMD_SUCCESS;
-}
-
-/*===============================
- * getcostumeitem <item id>;
- * getcostumeitem <"item name">;
- *===============================*/
-BUILDIN_FUNC(getcostumeitem)
-{
-	int get_count, i;
-	unsigned short nameid, amount;
-	struct item it;
-	TBL_PC *sd;
-	struct script_data *data;
-	unsigned char flag = 0;
-	struct item_data *id;
-
-	if (!script_rid2sd(sd))
-	{	// No player attached.
-		script_pushint(st, 0);
-		return SCRIPT_CMD_SUCCESS;
-	}
-
-	if (battle_config.visual_id_reservado <= 0) {
-		script_pushint(st, 0);
-		return SCRIPT_CMD_SUCCESS;
-	}
-
-	amount = script_getnum(st, 3);
-	data = script_getdata(st, 2);
-	get_val(st, data);
-	if (data_isstring(data)) {
-		int ep;
-		const char *name = conv_str(st, data);
-		id = itemdb_searchname(name);
-		if (id == NULL)
-		{	//Failed
-			script_pushint(st, 0);
-			return SCRIPT_CMD_SUCCESS;
-		}
-		ep = id->equip;
-		if (!(ep&EQP_HEAD_LOW) && !(ep&EQP_HEAD_MID) && !(ep&EQP_HEAD_TOP) && !(ep&EQP_GARMENT)) {
-			ShowError("buildin_getcostumeitem: Tentativa de converter item não cosmético em fantasia.");
-			return SCRIPT_CMD_FAILURE;
-		}
-		nameid = id->nameid;
-	}
-	else if (data_isint(data)) {// <item id>
-		nameid = conv_num(st, data);
-		if (!(id = itemdb_exists(nameid))) {
-			ShowError("buildin_getcostumeitem: Não existe o item %d requisitado.\n", nameid);
-			return SCRIPT_CMD_FAILURE; //Item não criado.
-		}
-	}
-	else {
-		ShowError("buildin_getcostumeitem: Tipo de dados inválido para argumento #1 (%d).", data->type);
-		return SCRIPT_CMD_FAILURE;
-	}
-
-	if (!itemdb_exists(nameid))
-	{	// Item does not exist.
-		script_pushint(st, 0);
-		return SCRIPT_CMD_SUCCESS;
-	}
-
-	memset(&it, 0, sizeof(it));
-	it.nameid = nameid;
-	it.identify = 1;
-	it.bound = BOUND_NONE;
-	it.card[0] = CARD0_CREATE;
-	it.card[2] = GetWord(battle_config.visual_id_reservado, 0);
-	it.card[3] = GetWord(battle_config.visual_id_reservado, 1);
-
-	//Check if it's stackable.
-	if (!itemdb_isstackable2(id))
-		get_count = 1;
-	else
-		get_count = amount;
-
-	for (i = 0; i < amount; i += get_count)
-	{
-		if (pc_additem(sd, &it, get_count, LOG_TYPE_SCRIPT))
-			clif_additem(sd, 0, 0, flag);
-	}
-
-	script_pushint(st, flag);
-	return SCRIPT_CMD_SUCCESS;
-}
-
 /**
 * Force stat recalculation of sd
 * recalculatestat;
@@ -24733,37 +24472,6 @@ BUILDIN_FUNC(unsetpointshopdesc)
 	return SCRIPT_CMD_SUCCESS;
 }
 
-/*==========================================
-+ * Proteção de Conta - [Orce brAthena]
-+ *------------------------------------------*/
-BUILDIN_FUNC(block) {
-	struct map_session_data* sd = NULL;
-	if (!script_rid2sd(sd))
-		return SCRIPT_CMD_SUCCESS;
-
-	int value = script_getnum(st, 2);
-
-	sd->state.protection_acc = (value) ? 1 : 0;
-
-	if (value == 1) {
-		pc_setaccountreg(sd, add_str(BLOCKNEG_VAR), 1);
-	}
-	else {
-		pc_setaccountreg(sd, add_str(BLOCKNEG_VAR), 0);
-	}
-
-	return SCRIPT_CMD_SUCCESS;
-}
-
-BUILDIN_FUNC(blockcheck) {
-	struct map_session_data *sd = NULL;
-	if (!script_rid2sd(sd))
-		return SCRIPT_CMD_SUCCESS;
-
-	script_pushint(st,sd->state.protection_acc);
-	return SCRIPT_CMD_SUCCESS;
-}
-
 // [CreativeSD]: Stuff Items
 #include "stuff_script_func.inc"
 
@@ -25023,59 +24731,9 @@ BUILDIN_FUNC(countguildmap)
 	return SCRIPT_CMD_SUCCESS;
 }
 
-//pedrodks 15-10-2021
-//icone buff para vips
-BUILDIN_FUNC(vip_icon)
-{
-	struct map_session_data* sd = map_id2sd(st->rid);
-
-	if (sd == NULL)
-		return SCRIPT_CMD_FAILURE;
-
-	switch (sd->group_id)
-	{
-	case 1:
-		clif_status_change(&sd->bl, EFST_VIP_FREE, 1, 0, 0, 0, 0);
-		return SCRIPT_CMD_SUCCESS;
-		break;
-	case 5:
-		clif_status_change(&sd->bl, EFST_VIP_PREMIUM, 1, 0, 0, 0, 0);
-		return SCRIPT_CMD_SUCCESS;
-		break;
-	}
-
-	return SCRIPT_CMD_FAILURE;
-}
-
-// (^~_~^) Gepard Shield Start
-
-BUILDIN_FUNC(get_unique_id)
-{
-	struct map_session_data* sd;
-
-	if (!script_rid2sd(sd))
-	{
-		script_pushint(st, 0);
-		return SCRIPT_CMD_FAILURE;
-	}
-
-	script_pushint(st, session[sd->fd]->gepard_info.unique_id);
-
-	return SCRIPT_CMD_SUCCESS;
-}
-
-// (^~_~^) Gepard Shield End
-
 /// script command definitions
 /// for an explanation on args, see add_buildin_func
 struct script_function buildin_func[] = {
-
-// (^~_~^) Gepard Shield Start
-
-	BUILDIN_DEF(get_unique_id,""),
-
-// (^~_~^) Gepard Shield End
-
 	// NPC interaction
 	BUILDIN_DEF(mes,"s*"),
 	BUILDIN_DEF(next,""),
@@ -25115,7 +24773,6 @@ struct script_function buildin_func[] = {
 	BUILDIN_DEF(rentitem,"vi?"),
 	BUILDIN_DEF(rentitem2,"viiiiiiii?"),
 	BUILDIN_DEF(getitem2,"viiiiiiii?"),
-	BUILDIN_DEF(getitem4,"viiiiiiiirrr?"),
 	BUILDIN_DEF(getnameditem,"vv"),
 	BUILDIN_DEF2(grouprandomitem,"groupranditem","i?"),
 	BUILDIN_DEF(makeitem,"visii"),
@@ -25630,8 +25287,6 @@ struct script_function buildin_func[] = {
 	BUILDIN_DEF(getguildalliance,"ii"),
 	BUILDIN_DEF(adopt,"vv"),
 	BUILDIN_DEF(getexp2,"ii?"),
-	BUILDIN_DEF(costume, "i"),
-	BUILDIN_DEF(getcostumeitem, "vi"),
 	BUILDIN_DEF(recalculatestat,""),
 	BUILDIN_DEF(hateffect,"ii"),
 	BUILDIN_DEF(getrandomoptinfo, "i"),
@@ -25692,10 +25347,6 @@ struct script_function buildin_func[] = {
 	BUILDIN_DEF2(round, "ceil", "i"),
 	BUILDIN_DEF2(round, "floor", "i"),
 	BUILDIN_DEF(getequiptradability, "i?"),
-
-	BUILDIN_DEF(block,"i"), // Proteção de Conta
-	BUILDIN_DEF(blockcheck,""), //Proteção de Conta
-
 	BUILDIN_DEF(mail, "isss*"),
 	BUILDIN_DEF(open_roulette,"?"),
 	BUILDIN_DEF(identifyall,"??"),
@@ -25736,8 +25387,6 @@ struct script_function buildin_func[] = {
 	// [CreativeSD]: Stuff Items
 #include "stuff_script_def.inc"
 
-	//Vip System [pedrodks]
-	BUILDIN_DEF(vip_icon, ""),
 
 	{NULL,NULL,NULL},
 };

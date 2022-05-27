@@ -580,7 +580,7 @@ char itemdb_isidentified(unsigned short nameid) {
 		case IT_ARMOR:
 		case IT_PETARMOR:
 		case IT_SHADOWGEAR:
-			return 1;
+			return 0;
 		default:
 			return 1;
 	}

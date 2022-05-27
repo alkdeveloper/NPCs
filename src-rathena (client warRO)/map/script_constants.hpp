@@ -545,7 +545,6 @@
 	export_constant2("bHit",SP_HIT);
 	export_constant2("bFlee",SP_FLEE1);
 	export_constant2("bFlee2",SP_FLEE2);
-	export_constant2("bDispellResist", SP_DISPELL_RESIST);
 	export_constant2("bCritical",SP_CRITICAL);
 	export_constant2("bAspd",SP_ASPD);
 	export_constant2("bFame",SP_FAME);
@@ -833,7 +832,6 @@
 	export_constant2("Eff_Fear",SC_FEAR);
 	export_constant2("Eff_Burning",SC_BURNING);
 	export_constant2("Eff_Crystalize",SC_CRYSTALIZE);
-	export_constant2("Eff_Coma",SC_COMA);
 
 	export_constant2("SC_ALL",SC_NONE);
 

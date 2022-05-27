@@ -73,12 +73,6 @@ int8 buyingstore_setup(struct map_session_data* sd, unsigned char slots){
 		return 1;
 	}
 
-	if (sd->state.protection_acc)
-	{
-		clif_displaymessage(sd->fd, msg_txt(sd, 4000));
-		return 1;
-	}
-
 	if( sd->sc.data[SC_NOCHAT] && (sd->sc.data[SC_NOCHAT]->val1&MANNER_NOROOM) )
 	{// custom: mute limitation
 		return 2;

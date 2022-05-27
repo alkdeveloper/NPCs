@@ -1177,10 +1177,6 @@ void initChangeTables(void)
 	StatusIconChangeTable[SC_LHZ_DUN_N4] = EFST_LHZ_DUN_N4;
 
 	StatusIconChangeTable[SC_ANCILLA] = EFST_ANCILLA;
-	
-	// Vip System [pedrodks]
-	StatusIconChangeTable[SC_VIP_FREE] = EFST_VIP_FREE;
-	StatusIconChangeTable[SC_VIP_PREMIUM] = EFST_VIP_PREMIUM;
 
 	/* Other SC which are not necessarily associated to skills */
 	StatusChangeFlagTable[SC_ASPDPOTION0] |= SCB_ASPD;
@@ -1342,10 +1338,6 @@ void initChangeTables(void)
 	StatusChangeFlagTable[SC_DORAM_FLEE2] |= SCB_FLEE2;
 	StatusChangeFlagTable[SC_DORAM_BUF_01] |= SCB_REGEN;
 	StatusChangeFlagTable[SC_DORAM_BUF_02] |= SCB_REGEN;
-	
-	// Vip System [pedrodks]
-	StatusChangeFlagTable[SC_VIP_FREE] |= SCB_NONE;
-	StatusChangeFlagTable[SC_VIP_PREMIUM] |= SCB_NONE;
 
 #ifdef RENEWAL
 	// renewal EDP increases your weapon atk
@@ -3619,8 +3611,6 @@ int status_calc_pc_sub(struct map_session_data* sd, enum e_status_calc_opt opt)
 		if (pc_is_same_equip_index((enum equip_index)i, sd->equip_index, index))
 			continue;
 		if (!sd->inventory_data[index])
-			continue;
-		if (sd->inventory.u.items_inventory[current_equip_item_index].card[0] == CARD0_CREATE && MakeDWord(sd->inventory.u.items_inventory[current_equip_item_index].card[2], sd->inventory.u.items_inventory[current_equip_item_index].card[3]) == battle_config.visual_id_reservado)
 			continue;
 
 		base_status->def += sd->inventory_data[index]->def;
@@ -8179,78 +8169,16 @@ t_tick status_get_sc_def(struct block_list *src, struct block_list *bl, enum sc_
 #endif
 			tick_def2 = status->luk*10;
 			break;
-	case SC_STONE:
-
-		sc_def = status->mdef * 100;
-
-		//formula a
-		if (battle_config.bgro_petri_formula == 1) {
-			int x, y, ldef;
-			x = status->luk * battle_config.bgro_petri_formula_luk;//valor do luk
-			y = status->mdef *  battle_config.bgro_petri_formula_mdef;//valor da mdef
-			ldef = x + y;//soma mdef+luk
-			if (ldef > battle_config.bgro_petri_formula_fix) {
-				ldef = battle_config.bgro_petri_formula_fix;
-			}
-
-			if (battle_config.bgro_cong_des_t2 != 1) {
-				sc_def2 = status->luk * 10 + status_get_lv(bl) * 10 - status_get_lv(src) * 10;
-			}
-
-			tick_def = (ldef);//temporizador
-		}
-		//formula b
-		else if (battle_config.bgro_petri_formula == 2) {
-
-			if (battle_config.bgro_cong_des_t2 != 1) {
-				sc_def2 = status->luk * 10 + status_get_lv(bl) * 10 - status_get_lv(src) * 10;
-			}
-
-			tick_def = (status->luk * battle_config.bgro_max_divi) / (battle_config.bgro_max_status + battle_config.bgro_max_luk_petri);
-		}
-		//formula original
-		else {
-			sc_def2 = status->luk * 10 + status_get_lv(bl) * 10 - status_get_lv(src) * 10;
-			tick_def = 0;
-		}
-		break;
-	case SC_FREEZE:
-			
-		sc_def = status->mdef * 100;
-
-		//formula a
-		if (battle_config.bgro_cong_formula == 1) {
-			int x, y, ldef;
-			x = status->luk * battle_config.bgro_cong_formula_luk;//valor do luk
-			y = status->mdef *  battle_config.bgro_cong_formula_mdef;//valor da mdef
-			ldef = x + y;//soma mdef+luk
-			if (ldef > battle_config.bgro_cong_formula_fix) {
-				ldef = battle_config.bgro_cong_formula_fix;
-			}
-			
-			if (battle_config.bgro_cong_des_t2 != 1) {
-				sc_def2 = status->luk * 10 + status_get_lv(bl) * 10 - status_get_lv(src) * 10;
-			}
-			
-			tick_def = (ldef);//temporizador
-		}
-		//formula b
-		else if (battle_config.bgro_cong_formula == 2) {
-
-			if (battle_config.bgro_cong_des_t2 != 1) {
-				sc_def2 = status->luk * 10 + status_get_lv(bl) * 10 - status_get_lv(src) * 10;
-			}
-
-			tick_def = (status->luk * battle_config.bgro_max_divi) / (battle_config.bgro_max_status + battle_config.bgro_max_luk_cong);
-		}
-		//formula original
-		else {
-			sc_def2 = status->luk * 10 + status_get_lv(bl) * 10 - status_get_lv(src) * 10;
+		case SC_STONE:
+			sc_def = status->mdef*100;
+			sc_def2 = status->luk*10 + status_get_lv(bl)*10 - status_get_lv(src)*10;
+			tick_def = 0; // No duration reduction
+			break;
+		case SC_FREEZE:
+			sc_def = status->mdef*100;
+			sc_def2 = status->luk*10 + status_get_lv(bl)*10 - status_get_lv(src)*10;
 			tick_def2 = status_src->luk*-10; // Caster can increase final duration with luk
-		}
-		break;
-
-
+			break;
 		case SC_CURSE:
 			// Special property: immunity when luk is zero
 			if (status->luk == 0)
@@ -8354,8 +8282,6 @@ t_tick status_get_sc_def(struct block_list *src, struct block_list *bl, enum sc_
 			break;
 		case SC_NORECOVER_STATE:
 			tick_def2 = status->luk * 100;
-			break;
-		case SC_COMA:
 			break;
 		default:
 			// Effect that cannot be reduced? Likely a buff.
@@ -10082,7 +10008,7 @@ int status_change_start(struct block_list* src, struct block_list* bl,enum sc_ty
 			if(val4 == BCT_SELF) {	// Self effect
 				val2 = tick/10000;
 				t_tickime = 10000; // [GodLesZ] tick time
-				status_change_clear_buffs(bl, SCCB_BUFFS|SCCB_DEBUFFS); // Remove buffs/debuffs
+				status_change_clear_buffs(bl, SCCB_BUFFS|SCCB_DEBUFFS|SCCB_CHEM_PROTECT); // Remove buffs/debuffs
 			}
 			break;
 

@@ -121,7 +121,7 @@ static struct block_list *bl_list[BL_LIST_MAX];
 static int bl_list_count = 0;
 
 #ifndef MAP_MAX_MSG
-	#define MAP_MAX_MSG 5000
+	#define MAP_MAX_MSG 1869
 #endif
 
 struct map_data map[MAX_MAP_PER_SERVER];
@@ -1952,12 +1952,6 @@ void map_reqnickdb(struct map_session_data * sd, int charid)
 	struct map_session_data* tsd;
 
 	nullpo_retv(sd);
-	
-	if (battle_config.visual_id_reservado && battle_config.visual_id_reservado == charid)
-	{
-		clif_solved_charname(sd->fd, charid, "Costume");
-		return;
-	}
 
 	// [CreativeSD]: Stuff Items
 	if( battle_config.stuff_enable ) {
