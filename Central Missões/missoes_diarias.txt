@@ -41,7 +41,13 @@ prontera,150,154,3	script	missoes	Itachi,{
 	{
 		case 1:
 			next;
+			mes .npc$;
+			mes "Escolha uma opção:";
+			set @s, select("Utilidades:Equipamentos");
+			callshop "PTSHOP"+@s,1;
+			npcshopattach "PTSHOP"+@s;
 			end;
+			close;
 			
 		case 2:
 			next;
@@ -134,6 +140,64 @@ prontera,150,154,3	script	missoes	Itachi,{
 			close;
 			end;
 	}
+	
+OnBuyItem:
+	mes .npc$;
+	if (@pontos == 0)
+	{
+		mes "Você não possui Pontos de Missão suficiente!";
+		close;
+		end;
+	}
+	if (@pontos >= 1)
+	{
+		set .@i,0;
+		while (.@i < getarraysize(@bought_nameid))
+		{
+			set .@j, 0;
+			while (.@j < getarraysize(getd(".Shop"+@s)))
+			{
+				if(getd(".Shop"+@s+"["+.@j+"]") == @bought_nameid[.@i])
+				{
+					set @itemcost, (getd(".Shop"+@s+"["+(.@j+1)+"]") * @bought_quantity[.@i]);
+					set @totalcost, @totalcost + @itemcost;
+					break;
+				}
+				set .@j, .@j+2;
+			}
+			set .@i, .@i+1;
+		}
+		
+		if (@totalcost > @pontos)
+		{
+			mes "Você não tem o suficiente de Pontos de Missão para completar a transação.";
+		}
+		else
+		{
+			set .@i,0;
+			while (.@i < getarraysize(@bought_nameid)) 
+			{
+				getitem @bought_nameid[.@i], @bought_quantity[.@i];
+				dispbottom "Você comprou "+@bought_quantity[.@i]+"x "+getitemname(@bought_nameid[.@i])+".";
+				set .@i, .@i+1; 
+			}
+			set @pontos_account,@pontos-@totalcost;
+			if (.mission_func == 0)
+			{
+				query_sql("UPDATE `sistema_missao` SET `pontos` = '"+@pontos_account+"' WHERE `account_id` = '"+getcharid(3)+"'");
+			}
+			else
+			{
+				query_sql("UPDATE `sistema_missao` SET `pontos` = '"+@pontos_account+"' WHERE `char_id` = '"+getcharid(0)+"'");
+
+			}
+			mes "Seu total de Pontos de Missão agora é de: "+@pontos_account+".";}
+			set @totalcost, 0;
+			deletearray @bought_nameid[0], 128;
+			deletearray @bought_quantity[0], 128;
+	}
+	close;
+end;
 
 //Inicio do Sistema de Missões por Hora, tbm via comando @gmcentralm
 OnStart:
@@ -838,6 +902,29 @@ OnInit:
 	
 	//Comando de Player
 	bindatcmd "centralm",strnpcinfo(3)+"::OnAtcommandPlayer";
+	
+	//LOJAS ESTRUTURA
+	//setarray .ShopID[0],ID DO ITEM,QUANTIDADE DO ITEM,ID DO ITEM,QUANTIDADE DO ITEM;
+	//Loja 1 - Equipamentos
+	setarray .Shop1[0],2000,1;
+	//Loja 2 - Utilidades
+	setarray .Shop2[0],15001,1;
+	
+	//Não mexer!!!
+	setarray .Currency[1],507;
+	set .@i,1;
+	while (.@i <= getarraysize(.Currency)) {
+	set .@j,0;
+	while (.@j < getarraysize(getd(".Shop"+.@i))) {
+	npcshopdelitem "PTSHOP"+.@i,16001;
+	npcshopadditem "PTSHOP"+.@i, getd(".Shop"+.@i+"["+.@j+"]"), getd(".Shop"+.@i+"["+(.@j+1)+"]");
+	set .@j, .@j+2; }
+	set .@i, .@i+1; }
 end;
 
 }
+
+//Lojas
+//Cada opção de compra
+-	shop	PTSHOP1	-1,16001:10//Equipamentos
+-	shop	PTSHOP2	-1,16001:10//Utilidades
