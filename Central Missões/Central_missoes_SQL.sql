@@ -3,7 +3,7 @@
 -- https://www.phpmyadmin.net/
 --
 -- Host: localhost
--- Generation Time: 26-Maio-2022 às 22:40
+-- Generation Time: 28-Maio-2022 às 21:49
 -- Versão do servidor: 5.7.25
 -- versão do PHP: 7.1.26
 
@@ -53,13 +53,6 @@ CREATE TABLE `sistema_missao_assasin` (
   `pontos` int(11) UNSIGNED NOT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8;
 
---
--- Extraindo dados da tabela `sistema_missao_assasin`
---
-
-INSERT INTO `sistema_missao_assasin` (`id`, `nome`, `texto`, `pontos`) VALUES
-(1, 'TESTE', '[Central de Missões]: Você deve matar [%s] para ganhar %d pontos. %s', 0);
-
 -- --------------------------------------------------------
 
 --
@@ -73,6 +66,13 @@ CREATE TABLE `sistema_missao_caça` (
   `pontos` int(11) UNSIGNED NOT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8;
 
+--
+-- Extraindo dados da tabela `sistema_missao_caça`
+--
+
+INSERT INTO `sistema_missao_caça` (`id`, `mobid`, `texto`, `pontos`) VALUES
+(1, 1002, '[Central de Missões]: Você deve matar o monstro %s para ganhar %d pontos. %s', 10);
+
 -- --------------------------------------------------------
 
 --
@@ -83,8 +83,15 @@ CREATE TABLE `sistema_missao_item` (
   `id` int(11) UNSIGNED NOT NULL,
   `itemid` int(11) UNSIGNED NOT NULL,
   `texto` varchar(150) CHARACTER SET latin1 NOT NULL,
-  `pontos` int(11) UNSIGNED NOT NULL
+  `pontos` int(11) UNSIGNED NOT NULL DEFAULT '0'
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8;
+
+--
+-- Extraindo dados da tabela `sistema_missao_item`
+--
+
+INSERT INTO `sistema_missao_item` (`id`, `itemid`, `texto`, `pontos`) VALUES
+(1, 506, '[Central de Missões]: Você deve me trazer o ITEM: %s ID: %d para ganhar %d pontos. %s', 10);
 
 --
 -- Indexes for dumped tables
@@ -128,19 +135,19 @@ ALTER TABLE `sistema_missao`
 -- AUTO_INCREMENT for table `sistema_missao_assasin`
 --
 ALTER TABLE `sistema_missao_assasin`
-  MODIFY `id` int(11) UNSIGNED NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=2;
+  MODIFY `id` int(11) UNSIGNED NOT NULL AUTO_INCREMENT;
 
 --
 -- AUTO_INCREMENT for table `sistema_missao_caça`
 --
 ALTER TABLE `sistema_missao_caça`
-  MODIFY `id` int(11) UNSIGNED NOT NULL AUTO_INCREMENT;
+  MODIFY `id` int(11) UNSIGNED NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=2;
 
 --
 -- AUTO_INCREMENT for table `sistema_missao_item`
 --
 ALTER TABLE `sistema_missao_item`
-  MODIFY `id` int(11) UNSIGNED NOT NULL AUTO_INCREMENT;
+  MODIFY `id` int(11) UNSIGNED NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=2;
 COMMIT;
 
 /*!40101 SET CHARACTER_SET_CLIENT=@OLD_CHARACTER_SET_CLIENT */;
